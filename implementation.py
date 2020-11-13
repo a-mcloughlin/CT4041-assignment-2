@@ -1,12 +1,15 @@
 # Main file for the implementation of the C4.5 algorithm
 import pandas as pd
 import numpy as np
+from graphviz import Graph
 from math import log2
 
 def main():
     data = pd.read_csv('beer.csv')
     train_data, train_target, test_data, test_target = split_data(data, (2/3))
     # entropy(train_target)
+    #need to create subset of data from train_target for the le_subset, lager_subset, stout_subset()
+    # gain = information_gain(train_target, [ale_subset, lager_subset, stout_subset])
     #tree = build_tree(train_data, train_target)
     #visualise_tree(tree)
     #test_tree(tree, test_data, test_target)
@@ -46,16 +49,33 @@ def entropy(train_target):
     ale = np.count_nonzero(train_target == 'ale')/ len(train_target)
     lager = np.count_nonzero(train_target == 'lager')/ len(train_target)
     stout = np.count_nonzero(train_target == 'stout')/ len(train_target)
-    entropy = -((ale)*log2(ale) + (lager)*log2(lager) + (stout)*log2(stout) )
+    entropy = -((ale)*log2(ale) + (lager)*log2(lager) + (stout)*log2(stout) ) # shouldn't these all be minus?
     return entropy
 
 # # Louise
-# def information_gain(leaf):
-#     return information_gain
+def information_gain(train_target, subsets):
+    # Gain calculation for this function following the lecture notes.
+    #Gain = Ent(S) - |S beer =ale |/|S|*( Ent( S beer=ale )) -  |S beer=stout |/|S|*( Ent( S beer=stout )) - |S beer=lager |/|S|*( Ent( S beer=lager )) - ....
+    entropyTarget = entropy(train_target)
+    total = len(train_target)
+
+    Gain = entropyTarget
+
+    for i in range(0, len(subsets)):
+        numBeer = len(subsets[i])
+        firstPart = numBeer/total
+        secondPart = entropy(subsets[i])
+        Gain -= (firstPart*secondPart)
+
+    return Gain
 
 # # Louise
-# def visualise_tree(tree):
-#     # visualaise
+def visualise_tree(tree):
+    dot_data = tree.export_graphviz(clf, out_file=None, 
+                                feature_names=iris.feature_names,  
+                                class_names=iris.target_names,
+                                filled=True)
+    graph = graphviz.Source(dot_data, format="png") 
    
 # # Come back to 
 # def test_tree(tree, testing_data):
