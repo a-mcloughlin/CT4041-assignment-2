@@ -1,6 +1,7 @@
 # Main file for the implementation of the C4.5 algorithm
 import pandas as pd
 import numpy as np
+from graphviz import Graph
 from math import log2
 
 def main():
@@ -50,12 +51,32 @@ def entropy(train_target):
     return entropy
 
 # # Louise
-# def information_gain(leaf):
-#     return information_gain
+def information_gain(self,train_target, subsets):
+
+    #get length of set s
+	S = len(train_target)
+
+	#calculate impurity before split
+	impurityBeforeSplit = self.entropy(train_target)
+
+	#calculate impurity after split
+	weights = [len(subset)/S for subset in subsets]
+	impurityAfterSplit = 0
+	for i in range(len(subsets)):
+	    impurityAfterSplit += weights[i]*self.entropy(subsets[i])
+
+	#calculate total gain
+	totalGain = impurityBeforeSplit - impurityAfterSplit
+	return totalGain
 
 # # Louise
-# def visualise_tree(tree):
-#     # visualaise
+def visualise_tree(tree):
+    dot_data = tree.export_graphviz(clf, out_file=None, 
+                                feature_names=iris.feature_names,  
+                                class_names=iris.target_names,
+                                filled=True)
+    graph = graphviz.Source(dot_data, format="png") 
+    graph.
    
 # # Come back to 
 # def test_tree(tree, testing_data):
