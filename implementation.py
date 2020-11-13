@@ -8,9 +8,10 @@ def main():
     data = pd.read_csv('beer.csv')
     train, test = split_data_training_testing(data, (2/3))
     ale_subset, lager_subset, stout_subset = split_data_styles(train)
-    train_data, train_target, test_data, test_target = split_into_data_target(train, test)
+    #train_data, train_target, test_data, test_target = split_into_data_target(train, test)
     #need to create subset of data from train_target for the ale_subset, lager_subset, stout_subset()
-    #gain = information_gain(train_target, [ale_subset, lager_subset, stout_subset])
+    gain = information_gain(train, [ale_subset, lager_subset, stout_subset])
+    print(gain)
     #tree = build_tree(train_data, train_target)
     #visualise_tree(tree)
     #test_tree(tree, test_data, test_target)
@@ -57,12 +58,12 @@ def read_csv_data(csv_path):
 #     return tree
 
 # # Aideen
-def entropy(train_target):
-
-    ale = np.count_nonzero(train_target == 'ale')/ len(train_target)
-    lager = np.count_nonzero(train_target == 'lager')/ len(train_target)
-    stout = np.count_nonzero(train_target == 'stout')/ len(train_target)
-    entropy = -((ale)*log2(ale) + (lager)*log2(lager) + (stout)*log2(stout) ) # shouldn't these all be minus?
+def entropy(training_data):
+    ale_subset, lager_subset, stout_subset = split_data_styles(training_data)
+    ale = len(ale_subset)/ len(training_data)
+    lager = len(lager_subset)/ len(training_data)
+    stout = len(stout_subset)/ len(training_data)
+    entropy = -((ale)*log2(ale) + (lager)*log2(lager) + (stout)*log2(stout) ) # shouldn't these all be minus? - I don't think so
     return entropy
 
 # # Louise
