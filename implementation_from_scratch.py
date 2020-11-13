@@ -12,10 +12,15 @@ def main():
     #train_data, train_target, test_data, test_target = split_into_data_target(train, test)
     #need to create subset of data from train_target for the ale_subset, lager_subset, stout_subset()
     
-    subsets = split_into_subsets('calorific_value', train)
-    print(subsets)
-    gain = information_gain(train, subsets)
-    print(gain)
+    attributes = ['calorific_value','nitrogen','turbidity','alcohol','sugars','bitterness','colour','degree_of_fermentation']
+    for attribute in attributes:
+        subsets = split_into_subsets(attribute, train)
+        gain = information_gain(train, subsets)
+        print("Attribute: "+attribute)
+        print("Lesser Length: "+str(len(subsets[0])))
+        print("Greater Length: "+str(len(subsets[1])))
+        print("Information Gain:" +str(gain))
+        print("------------------------------------------")
     
     #gain = information_gain(train, [ale_subset, lager_subset, stout_subset])
     #tree = build_tree(train_data, train_target)
@@ -38,18 +43,18 @@ def split_into_subsets(column_header, training_data):
     for item in range(0, len(training_data) - 1):
         if sorted_data.iloc[item][column_header] != sorted_data.iloc[item+1][column_header]:
             threshold = (sorted_data.iloc[item][column_header] + sorted_data.iloc[item+1][column_header]) / 2
-            less = pd.DataFrame()
-            greater = pd.DataFrame()
+            smaller_than_threshold = pd.DataFrame()
+            bigger_than_threshold = pd.DataFrame()
             for index, row in sorted_data.iterrows():
                 if(row[column_header] > threshold):
-                    greater = greater.append(row, ignore_index = True)
+                    bigger_than_threshold = bigger_than_threshold.append(row, ignore_index = True)
                 else:
-                    less = less.append(row, ignore_index = True)
+                    smaller_than_threshold = smaller_than_threshold.append(row, ignore_index = True)
 
-            igain = information_gain(training_data, [less, greater])
+            igain = information_gain(training_data, [smaller_than_threshold, bigger_than_threshold])
 
             if igain >= maxEnt:
-                split_values = [less, greater]
+                split_values = [smaller_than_threshold, bigger_than_threshold]
                 maxEnt = igain
     return split_values
 
