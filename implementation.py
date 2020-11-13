@@ -8,6 +8,8 @@ def main():
     data = pd.read_csv('beer.csv')
     train_data, train_target, test_data, test_target = split_data(data, (2/3))
     # entropy(train_target)
+    #need to create subset of data from train_target for the le_subset, lager_subset, stout_subset()
+    # gain = information_gain(train_target, [ale_subset, lager_subset, stout_subset])
     #tree = build_tree(train_data, train_target)
     #visualise_tree(tree)
     #test_tree(tree, test_data, test_target)
@@ -47,27 +49,25 @@ def entropy(train_target):
     ale = np.count_nonzero(train_target == 'ale')/ len(train_target)
     lager = np.count_nonzero(train_target == 'lager')/ len(train_target)
     stout = np.count_nonzero(train_target == 'stout')/ len(train_target)
-    entropy = -((ale)*log2(ale) + (lager)*log2(lager) + (stout)*log2(stout) )
+    entropy = -((ale)*log2(ale) + (lager)*log2(lager) + (stout)*log2(stout) ) # shouldn't these all be minus?
     return entropy
 
 # # Louise
-def information_gain(self,train_target, subsets):
+def information_gain(train_target, subsets):
+    # Gain calculation for this function following the lecture notes.
+    #Gain = Ent(S) - |S beer =ale |/|S|*( Ent( S beer=ale )) -  |S beer=stout |/|S|*( Ent( S beer=stout )) - |S beer=lager |/|S|*( Ent( S beer=lager )) - ....
+    entropyTarget = entropy(train_target)
+    total = len(train_target)
 
-    #get length of set s
-	S = len(train_target)
+    Gain = entropyTarget
 
-	#calculate impurity before split
-	impurityBeforeSplit = self.entropy(train_target)
+    for i in range(0, len(subsets)):
+        numBeer = len(subsets[i])
+        firstPart = numBeer/total
+        secondPart = entropy(subsets[i])
+        Gain -= (firstPart*secondPart)
 
-	#calculate impurity after split
-	weights = [len(subset)/S for subset in subsets]
-	impurityAfterSplit = 0
-	for i in range(len(subsets)):
-	    impurityAfterSplit += weights[i]*self.entropy(subsets[i])
-
-	#calculate total gain
-	totalGain = impurityBeforeSplit - impurityAfterSplit
-	return totalGain
+    return Gain
 
 # # Louise
 def visualise_tree(tree):
@@ -76,7 +76,6 @@ def visualise_tree(tree):
                                 class_names=iris.target_names,
                                 filled=True)
     graph = graphviz.Source(dot_data, format="png") 
-    graph.
    
 # # Come back to 
 # def test_tree(tree, testing_data):
