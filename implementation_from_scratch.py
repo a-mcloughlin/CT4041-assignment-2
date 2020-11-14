@@ -14,16 +14,16 @@ def main():
     #need to create subset of data from train_target for the ale_subset, lager_subset, stout_subset()
     
     attributes = ['calorific_value','nitrogen','turbidity','alcohol','sugars','bitterness','colour','degree_of_fermentation']
-    for attribute in attributes:
-        subsets = split_into_subsets(attribute, train)
-        gain = information_gain(train, subsets)
-        print("Attribute: " + attribute)
-        print("Lesser Length: "+ str(len(subsets[0])))
-        print("Greater Length: " + str(len(subsets[1])))
-        print("Information Gain:" + str(gain))
-        print("------------------------------------------")
+    # for attribute in attributes:
+    #     subsets = split_into_subsets(attribute, train)
+    #     gain = information_gain(train, subsets)
+    #     print("Attribute: " + attribute)
+    #     print("Lesser Length: "+ str(len(subsets[0])))
+    #     print("Greater Length: " + str(len(subsets[1])))
+    #     print("Information Gain:" + str(gain))
+    #     print("------------------------------------------")
     
-    root_node = build_tree(train, attribute)
+    root_node = build_tree(train, attributes)
     #gain = information_gain(train, [ale_subset, lager_subset, stout_subset])    
     #visualise_tree(tree)
     #test_tree(tree, test_data, test_target)
@@ -34,19 +34,19 @@ def main():
 def build_tree(data, attributes):
     #1. check above base cases
         #•  All the examples from the training set belong to the same class ( a tree leaf labeled with that class is returned ).
-    data_class_check = data_class_check(data)
+    data_class_checked = data_class_check(data)
   
     #•  The training set is empty ( returns a tree leaf called failure ).
     if len(data) == 0:
-			return Node(True, "Fail")
-    elif data_class_check is not False:		
-			return Node(True, data_class_check)
+	    return Node(True, "Fail")
+    elif data_class_checked is not False:		
+	    return Node(True, data_class_checked)
 
     #  The attribute list is empty ( returns a leaf with the majority class).
     elif len(attributes) == 0:
-    			#return a node with the majority class
-			majClass = getMajorityClass(data, ['ale','lager','stout'])
-			return Node(True, majClass)
+        #return a node with the majority class
+        majClass = getMajorityClass(data, ['ale','lager','stout'])
+        return Node(True, majClass)
     else:
         #2. find attribute with highest info gain, retrun best_attribute - done
         best_attribute = find_best_attribute(data, attributes)
@@ -149,10 +149,10 @@ def read_csv_data(csv_path):
     return data
 
 def data_class_check(data):
-  	for row in data:
-		if row[-1] != data[0][-1]:
-			return False
-	return data[0][-1]
+    for row in data:
+        if row[-1] != data[0][-1]:
+            return False
+    return data[0][-1]
 
 
 # # Aideen
@@ -197,7 +197,7 @@ def visualise_tree(tree):
 main()
 
 class Node:
-    	def __init__(self,isLeaf, label):
-		self.label = label
-		self.isLeaf = isLeaf
-		self.children = []
+    def __init__(self,isLeaf, label):
+        self.label = label
+        self.isLeaf = isLeaf
+        self.children = []
