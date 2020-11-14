@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from graphviz import Graph
 from math import log2
+from copy import deepcopy
 
 def main():
     data = pd.read_csv('beer.csv')
@@ -16,25 +17,79 @@ def main():
     for attribute in attributes:
         subsets = split_into_subsets(attribute, train)
         gain = information_gain(train, subsets)
-        print("Attribute: "+attribute)
-        print("Lesser Length: "+str(len(subsets[0])))
-        print("Greater Length: "+str(len(subsets[1])))
-        print("Information Gain:" +str(gain))
+        print("Attribute: " + attribute)
+        print("Lesser Length: "+ str(len(subsets[0])))
+        print("Greater Length: " + str(len(subsets[1])))
+        print("Information Gain:" + str(gain))
         print("------------------------------------------")
     
-    #gain = information_gain(train, [ale_subset, lager_subset, stout_subset])
-    #tree = build_tree(train_data, train_target)
+    root_node = build_tree(train, attribute)
+    #gain = information_gain(train, [ale_subset, lager_subset, stout_subset])    
     #visualise_tree(tree)
     #test_tree(tree, test_data, test_target)
 
 
-# # Come back to 
-# def build_tree(data):
+# 
+#
+def build_tree(data, attributes):
+    #1. check above base cases
+        #•  All the examples from the training set belong to the same class ( a tree leaf labeled with that class is returned ).
+    data_class_check = data_class_check(data)
+  
+    #•  The training set is empty ( returns a tree leaf called failure ).
+    if len(data) == 0:
+			return Node(True, "Fail")
+    elif data_class_check is not False:		
+			return Node(True, data_class_check)
+
+    #  The attribute list is empty ( returns a leaf with the majority class).
+    elif len(attributes) == 0:
+    			#return a node with the majority class
+			majClass = getMajorityClass(data, ['ale','lager','stout'])
+			return Node(True, majClass)
+    else:
+        #2. find attribute with highest info gain, retrun best_attribute - done
+        best_attribute = find_best_attribute(data, attributes)
+
+        #3. split the set (data) in subsets arrcording to value of best_attribute
+        attribute_subsets = split_into_subsets(best_attribute, data)
+        remainColumns = deepcopy(data)
+        remainColumns.drop(columns=[best_attribute])
+
+        #4. repeat steps for each subset 
+        node = Node(False, best_attribute)
+        for attr_subset in attribute_subsets:
+            node.children.append(build_tree(attr_subset, remainColumns))
+        return node
+
+
 #     for column in data
 #       subsets = split_into_subsets(column)
 #       gain = information_gain(train, subsets)
 #   
-#     return tree
+
+# # Louise
+def find_best_attribute(train_data, attributes):
+    #  Returns the best attribute from all
+    best_information_gain = 0
+    best_attribute = ""
+    for attribute in attributes:
+        temp_gain = information_gain(train_data, split_into_subsets(attribute, train_data))
+        if temp_gain > best_information_gain:
+            best_attribute = attribute
+            best_information_gain = temp_gain
+    
+    return best_attribute
+    
+
+def getMajorityClass(data, labels):
+    occurrence = [0]*len(labels) # create a zeroed array of length labels ['ale','lager','stout']
+    for row in data: 
+        i = labels.index(row[3]) # style is the fourth column
+        occurrence[i] += 1
+
+    return labels[occurrence.index(max(occurrence))]  	
+
 
 def split_into_subsets(column_header, training_data):
     split_values = []
@@ -93,8 +148,12 @@ def read_csv_data(csv_path):
     data = pd.read_csv(csv_path)
     return data
 
-# def data_class_check(data):
-#     return result
+def data_class_check(data):
+  	for row in data:
+		if row[-1] != data[0][-1]:
+			return False
+	return data[0][-1]
+
 
 # # Aideen
 def entropy(training_data):
@@ -136,3 +195,9 @@ def visualise_tree(tree):
 #     # test tree
     
 main()
+
+class Node:
+    	def __init__(self,isLeaf, label):
+		self.label = label
+		self.isLeaf = isLeaf
+		self.children = []
