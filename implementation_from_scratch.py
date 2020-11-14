@@ -6,14 +6,14 @@ from math import log2
 from copy import deepcopy
 
 def main():
-    data = pd.read_csv('beer.csv')
+    data = pd.read_csv('beer-small.csv')
     train, test = split_data_training_testing(data, (2/3))
     ale_subset, lager_subset, stout_subset = split_data_styles(train)
     
     #train_data, train_target, test_data, test_target = split_into_data_target(train, test)
     #need to create subset of data from train_target for the ale_subset, lager_subset, stout_subset()
     
-    attributes = ['calorific_value','nitrogen','turbidity','alcohol','sugars','bitterness','colour','degree_of_fermentation']
+    attributes = ['calorific_value','nitrogen','turbidity','style','alcohol','sugars','bitterness','beer_id','colour','degree_of_fermentation']
     # for attribute in attributes:
     #     subsets = split_into_subsets(attribute, train)
     #     gain = information_gain(train, subsets)
@@ -23,7 +23,11 @@ def main():
     #     print("Information Gain:" + str(gain))
     #     print("------------------------------------------")
     
-    root_node = build_tree(train, attributes)
+    # get tree using build_tree
+    # visualise tree
+    # test tree
+    node = build_tree(train, attributes)
+    print(node)
     #gain = information_gain(train, [ale_subset, lager_subset, stout_subset])    
     #visualise_tree(tree)
     #test_tree(tree, test_data, test_target)
@@ -35,7 +39,6 @@ def build_tree(data, attributes):
     #1. check above base cases
         #•  All the examples from the training set belong to the same class ( a tree leaf labeled with that class is returned ).
     data_class_checked = data_class_check(data)
-  
     #•  The training set is empty ( returns a tree leaf called failure ).
     if len(data) == 0:
 	    return Node(True, "Fail")
@@ -50,16 +53,16 @@ def build_tree(data, attributes):
     else:
         #2. find attribute with highest info gain, retrun best_attribute - done
         best_attribute = find_best_attribute(data, attributes)
+        if best_attribute != "":
+            #3. split the set (data) in subsets arrcording to value of best_attribute
+            attribute_subsets = split_into_subsets(best_attribute, data)
+            remainColumns = deepcopy(data)
+            remainColumns.drop(columns=[best_attribute])
 
-        #3. split the set (data) in subsets arrcording to value of best_attribute
-        attribute_subsets = split_into_subsets(best_attribute, data)
-        remainColumns = deepcopy(data)
-        remainColumns.drop(columns=[best_attribute])
-
-        #4. repeat steps for each subset 
-        node = Node(False, best_attribute)
-        for attr_subset in attribute_subsets:
-            node.children.append(build_tree(attr_subset, remainColumns))
+            #4. repeat steps for each subset 
+            node = Node(False, best_attribute)
+            for attr_subset in attribute_subsets:
+                node.children.append(build_tree(attr_subset, remainColumns))
         return node
 
 
@@ -74,10 +77,12 @@ def find_best_attribute(train_data, attributes):
     best_information_gain = 0
     best_attribute = ""
     for attribute in attributes:
-        temp_gain = information_gain(train_data, split_into_subsets(attribute, train_data))
-        if temp_gain > best_information_gain:
-            best_attribute = attribute
-            best_information_gain = temp_gain
+        if attribute != 'style': 
+            if attribute != 'beer_id':
+                temp_gain = information_gain(train_data, split_into_subsets(attribute, train_data))
+                if temp_gain > best_information_gain:
+                    best_attribute = attribute
+                    best_information_gain = temp_gain
     
     return best_attribute
     
@@ -149,10 +154,12 @@ def read_csv_data(csv_path):
     return data
 
 def data_class_check(data):
-    for row in data:
-        if row[-1] != data[0][-1]:
+    for index, row in data.iterrows():
+        a = row.iloc[-1]
+        b = data.iloc[0].iloc[-1]
+        if a != b:
             return False
-    return data[0][-1]
+    return data.iloc[0].iloc[-1]
 
 
 # # Aideen
@@ -193,11 +200,11 @@ def visualise_tree(tree):
 # # Come back to 
 # def test_tree(tree, testing_data):
 #     # test tree
-    
-main()
 
 class Node:
     def __init__(self,isLeaf, label):
         self.label = label
         self.isLeaf = isLeaf
         self.children = []
+    
+main()
