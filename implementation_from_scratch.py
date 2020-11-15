@@ -13,7 +13,8 @@ def main():
     #train_data, train_target, test_data, test_target = split_into_data_target(train, test)
     #need to create subset of data from train_target for the ale_subset, lager_subset, stout_subset()
     
-    attributes = ['calorific_value','nitrogen','turbidity','alcohol','sugars','bitterness','colour','degree_of_fermentation']
+    attributes = ['calorific_value','nitrogen','turbidity','style','alcohol','sugars','bitterness','colour','degree_of_fermentation']
+   # attributes = ['calorific_value','nitrogen','turbidity','alcohol','sugars','bitterness','colour','degree_of_fermentation']
     # for attribute in attributes:
     #     subsets = split_into_subsets(attribute, train)
     #     gain = information_gain(train, subsets)
@@ -23,69 +24,118 @@ def main():
     #     print("Information Gain:" + str(gain))
     #     print("------------------------------------------")
     
-    root_node = build_tree(train, attributes)
+    # get tree using build_tree
+    # visualise tree
+    # test tree
+    node = build_tree(train, attributes)
+    print_node_data(node, "")
+    
+    test_target = test['style'].values
+    test = test.drop(columns=['style'])
+    test_results = test_data(test, node, [])
+    print("test_target")
+    print(test_target)
+    print("test_results")
+    print(test_results)
     #gain = information_gain(train, [ale_subset, lager_subset, stout_subset])    
     #visualise_tree(tree)
     #test_tree(tree, test_data, test_target)
 
 
+def test_data(data, node, test_results):
+    for item in range(0, len(data) - 1):
+        test_results.append(test_lr(node, data.iloc[item]))
+    return test_results
+            
+def test_lr(node, row):
+    if node.isLeaf:
+        classs = node.label
+        print(classs)
+        return classs
+    else:
+        if row[node.label] <= node.divisor:
+            test_lr(node.children[0], row)
+        else:
+            test_lr(node.children[1], row)
+        
+def print_node_data(node, indent):
+    print("-------------")
+    print(indent+"Label:    "+str(node.label))
+    print(indent+"Is Leaf:  "+str(node.isLeaf))
+    print(indent+"Threshold Value:  x > "+str(node.divisor))
+    if node.children != []:
+        print(indent+"Children: ")
+        for child in node.children:
+            print_node_data(child, indent+"\t")
+    else:
+        print(indent+"No Children")
 # 
 #
 def build_tree(data, attributes):
     #1. check above base cases
         #•  All the examples from the training set belong to the same class ( a tree leaf labeled with that class is returned ).
     data_class_checked = data_class_check(data)
-  
     #•  The training set is empty ( returns a tree leaf called failure ).
     if len(data) == 0:
-	    return Node(True, "Fail")
+	    return Node(True, "Fail", None)
     elif data_class_checked is not False:		
-	    return Node(True, data_class_checked)
+	    return Node(True, data_class_checked, None)
 
     #  The attribute list is empty ( returns a leaf with the majority class).
     elif len(attributes) == 0:
         #return a node with the majority class
         majClass = getMajorityClass(data, ['ale','lager','stout'])
-        return Node(True, majClass)
+        return Node(True, majClass, None)
     else:
         #2. find attribute with highest info gain, retrun best_attribute - done
-        best_attribute = find_best_attribute(data, attributes)
+        best_attribute, attribute_subsets, threshold_divisor  = find_best_attribute(data, attributes)
+        
+        if best_attribute == "":
+            majClass = getMajorityClass(data, ['ale','lager','stout'])
+            return Node(True, majClass, None)
+        else:
+            #3. split the set (data) in subsets arrcording to value of best_attribute
+            #attribute_subsets = split_into_subsets(best_attribute, data)
+            remainColumns = deepcopy(data)
+            remainColumns = data.drop(columns=[best_attribute])
 
-        #3. split the set (data) in subsets arrcording to value of best_attribute
-        attribute_subsets = split_into_subsets(best_attribute, data)
-        remainColumns = deepcopy(data)
-        remainColumns.drop(columns=[best_attribute])
-
-        #4. repeat steps for each subset 
-        node = Node(False, best_attribute)
-        for attr_subset in attribute_subsets:
-            node.children.append(build_tree(attr_subset, remainColumns))
-        return node
-
-
-#     for column in data
-#       subsets = split_into_subsets(column)
-#       gain = information_gain(train, subsets)
-#   
+            #4. repeat steps for each subset 
+            node = Node(False, best_attribute, threshold_divisor)
+            for attr_subset in attribute_subsets:
+                node.children.append(build_tree(attr_subset, remainColumns))
+                
+            return node
+  
 
 # # Louise
 def find_best_attribute(train_data, attributes):
     #  Returns the best attribute from all
     best_information_gain = 0
     best_attribute = ""
+    threshold_divisor = ""
+    subsets = []
     for attribute in attributes:
-        temp_gain = information_gain(train_data, split_into_subsets(attribute, train_data))
-        if temp_gain > best_information_gain:
-            best_attribute = attribute
-            best_information_gain = temp_gain
+        if attribute != 'style':
+            temp_subsets, temp_divisor = split_into_subsets(attribute, train_data)
+            temp_gain = information_gain(train_data, temp_subsets)
+            # print("Attribute: "+attribute)
+            # print("Inf Gain: "+str(temp_gain))
+            # print("Temp Subsets: 0-> "+str(len(temp_subsets[0]))+" 1-> "+str(len(temp_subsets[1])))
+            # print("----------------------------")
+            if temp_gain > best_information_gain:
+                best_attribute = attribute
+                best_information_gain = temp_gain
+                subsets = temp_subsets
+                threshold_divisor = temp_divisor
     
-    return best_attribute
+    return best_attribute, subsets, threshold_divisor
     
 
 def getMajorityClass(data, labels):
-    occurrence = [0]*len(labels) # create a zeroed array of length labels ['ale','lager','stout']
-    for row in data: 
-        i = labels.index(row[3]) # style is the fourth column
+    occurrence = [0,0,0]
+    
+    for index, row in data.iterrows():
+        i = labels.index(row['style'])
         occurrence[i] += 1
 
     return labels[occurrence.index(max(occurrence))]  	
@@ -94,24 +144,27 @@ def getMajorityClass(data, labels):
 def split_into_subsets(column_header, training_data):
     split_values = []
     maxEnt = -1*float("inf")
+    best_threshold = ""
     sorted_data = training_data.sort_values(by=[column_header])
     for item in range(0, len(training_data) - 1):
-        if sorted_data.iloc[item][column_header] != sorted_data.iloc[item+1][column_header]:
-            threshold = (sorted_data.iloc[item][column_header] + sorted_data.iloc[item+1][column_header]) / 2
-            smaller_than_threshold = pd.DataFrame()
-            bigger_than_threshold = pd.DataFrame()
-            for index, row in sorted_data.iterrows():
-                if(row[column_header] > threshold):
-                    bigger_than_threshold = bigger_than_threshold.append(row, ignore_index = True)
-                else:
-                    smaller_than_threshold = smaller_than_threshold.append(row, ignore_index = True)
+        if type(sorted_data.iloc[item][column_header]) != 'style':
+            if sorted_data.iloc[item][column_header] != sorted_data.iloc[item+1][column_header]:
+                threshold = (sorted_data.iloc[item][column_header] + sorted_data.iloc[item+1][column_header]) / 2
+                smaller_than_threshold = pd.DataFrame()
+                bigger_than_threshold = pd.DataFrame()
+                for index, row in sorted_data.iterrows():
+                    if(row[column_header] > threshold):
+                        bigger_than_threshold = bigger_than_threshold.append(row, ignore_index = True)
+                    else:
+                        smaller_than_threshold = smaller_than_threshold.append(row, ignore_index = True)
 
-            igain = information_gain(training_data, [smaller_than_threshold, bigger_than_threshold])
+                igain = information_gain(training_data, [smaller_than_threshold, bigger_than_threshold])
 
-            if igain >= maxEnt:
-                split_values = [smaller_than_threshold, bigger_than_threshold]
-                maxEnt = igain
-    return split_values
+                if igain >= maxEnt:
+                    split_values = [smaller_than_threshold, bigger_than_threshold]
+                    best_threshold = threshold
+                    maxEnt = igain
+    return split_values, best_threshold
 
 # Aideen
 def split_data_styles(data):
@@ -197,9 +250,16 @@ def visualise_tree(tree):
 #     # test tree
 
 class Node:
-    def __init__(self,isLeaf, label):
+    def __init__(self,isLeaf, label, divisor):
         self.label = label
         self.isLeaf = isLeaf
+        self.divisor = divisor
         self.children = []
+    
+    def left_or_right(self, value):
+        if value <= self.divisor:
+            return 0
+        else:
+            return 1
     
 main()
