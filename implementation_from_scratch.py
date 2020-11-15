@@ -4,59 +4,35 @@ import numpy as np
 from graphviz import Graph
 from math import log2
 from copy import deepcopy
+from weka_implementation import build_weka_tree
 
 def main():
-    data = pd.read_csv('beer.csv')
-    train, test = split_data_training_testing(data, (2/3))
-    ale_subset, lager_subset, stout_subset = split_data_styles(train)
-    
-    #train_data, train_target, test_data, test_target = split_into_data_target(train, test)
-    #need to create subset of data from train_target for the ale_subset, lager_subset, stout_subset()
+    file = 'beer.csv'
+    split = 2/3
+    data = pd.read_csv(file)
+    train_data, test_data = split_data_training_testing(data, (2/3))
     
     attributes = ['calorific_value','nitrogen','turbidity','style','alcohol','sugars','bitterness','colour','degree_of_fermentation']
-   # attributes = ['calorific_value','nitrogen','turbidity','alcohol','sugars','bitterness','colour','degree_of_fermentation']
-    # for attribute in attributes:
-    #     subsets = split_into_subsets(attribute, train)
-    #     gain = information_gain(train, subsets)
-    #     print("Attribute: " + attribute)
-    #     print("Lesser Length: "+ str(len(subsets[0])))
-    #     print("Greater Length: " + str(len(subsets[1])))
-    #     print("Information Gain:" + str(gain))
-    #     print("------------------------------------------")
-    
-    # get tree using build_tree
-    # visualise tree
-    # test tree
-    node = build_tree(train, attributes)
-    print_node_data(node, "")
-    
-    test_target = test['style'].values
-    test = test.drop(columns=['style'])
-    test_results = test_data(test, node, [])
-    print("test_target")
-    print(test_target)
-    print("test_results")
-    print(test_results)
-    #gain = information_gain(train, [ale_subset, lager_subset, stout_subset])    
+    root_node = build_tree(train_data, attributes)
+    print_node_data(root_node, "")
     #visualise_tree(tree)
-    #test_tree(tree, test_data, test_target)
-
-
+    
+    test_tree(root_node, test_data)
+    build_weka_tree(file, split)
+    
 def test_data(data, node, test_results):
-    for item in range(0, len(data) - 1):
+    for item in range(0, len(data)):
         test_results.append(test_lr(node, data.iloc[item]))
     return test_results
             
 def test_lr(node, row):
     if node.isLeaf:
-        classs = node.label
-        print(classs)
-        return classs
+        return node.label
     else:
         if row[node.label] <= node.divisor:
-            test_lr(node.children[0], row)
+            return test_lr(node.children[0], row)
         else:
-            test_lr(node.children[1], row)
+            return test_lr(node.children[1], row)
         
 def print_node_data(node, indent):
     print("-------------")
@@ -74,37 +50,32 @@ def print_node_data(node, indent):
 def build_tree(data, attributes):
     #1. check above base cases
         #•  All the examples from the training set belong to the same class ( a tree leaf labeled with that class is returned ).
-    data_class_checked = data_class_check(data)
+    # data_class_checked = data_class_check(data)
     #•  The training set is empty ( returns a tree leaf called failure ).
     if len(data) == 0:
 	    return Node(True, "Fail", None)
-    elif data_class_checked is not False:		
-	    return Node(True, data_class_checked, None)
+    # elif data_class_checked is not False:		
+	#     return Node(True, data_class_checked, None)
 
-    #  The attribute list is empty ( returns a leaf with the majority class).
-    elif len(attributes) == 0:
-        #return a node with the majority class
-        majClass = getMajorityClass(data, ['ale','lager','stout'])
+    #2. find attribute with highest info gain, retrun best_attribute - done
+    best_attribute, attribute_subsets, threshold_divisor  = find_best_attribute(data, attributes)
+    
+    if best_attribute == "":
+        majClass = getMajorityClass(data)
+        print("New Leaf with class "+str(majClass))
         return Node(True, majClass, None)
     else:
-        #2. find attribute with highest info gain, retrun best_attribute - done
-        best_attribute, attribute_subsets, threshold_divisor  = find_best_attribute(data, attributes)
-        
-        if best_attribute == "":
-            majClass = getMajorityClass(data, ['ale','lager','stout'])
-            return Node(True, majClass, None)
-        else:
-            #3. split the set (data) in subsets arrcording to value of best_attribute
-            #attribute_subsets = split_into_subsets(best_attribute, data)
-            remainColumns = deepcopy(data)
-            remainColumns = data.drop(columns=[best_attribute])
+        #3. split the set (data) in subsets arrcording to value of best_attribute
+        #attribute_subsets = split_into_subsets(best_attribute, data)
+        remainColumns = deepcopy(data)
+        remainColumns = data.drop(columns=[best_attribute])
 
-            #4. repeat steps for each subset 
-            node = Node(False, best_attribute, threshold_divisor)
-            for attr_subset in attribute_subsets:
-                node.children.append(build_tree(attr_subset, remainColumns))
-                
-            return node
+        #4. repeat steps for each subset 
+        node = Node(False, best_attribute, threshold_divisor)
+        for attr_subset in attribute_subsets:
+            node.children.append(build_tree(attr_subset, remainColumns))
+            
+        return node
   
 
 # # Louise
@@ -118,10 +89,6 @@ def find_best_attribute(train_data, attributes):
         if attribute != 'style':
             temp_subsets, temp_divisor = split_into_subsets(attribute, train_data)
             temp_gain = information_gain(train_data, temp_subsets)
-            # print("Attribute: "+attribute)
-            # print("Inf Gain: "+str(temp_gain))
-            # print("Temp Subsets: 0-> "+str(len(temp_subsets[0]))+" 1-> "+str(len(temp_subsets[1])))
-            # print("----------------------------")
             if temp_gain > best_information_gain:
                 best_attribute = attribute
                 best_information_gain = temp_gain
@@ -131,14 +98,9 @@ def find_best_attribute(train_data, attributes):
     return best_attribute, subsets, threshold_divisor
     
 
-def getMajorityClass(data, labels):
-    occurrence = [0,0,0]
-    
-    for index, row in data.iterrows():
-        i = labels.index(row['style'])
-        occurrence[i] += 1
-
-    return labels[occurrence.index(max(occurrence))]  	
+def getMajorityClass(data):
+    grouped = data.groupby(data['style'])
+    return max(grouped.groups)
 
 
 def split_into_subsets(column_header, training_data):
@@ -203,9 +165,7 @@ def read_csv_data(csv_path):
 
 def data_class_check(data):
     for index, row in data.iterrows():
-        a = row.iloc[-1]
-        b = data.iloc[0].iloc[-1]
-        if a != b:
+        if row.iloc[-1] != data.iloc[0].iloc[-1]:
             return False
     return data.iloc[0].iloc[-1]
 
@@ -245,9 +205,18 @@ def visualise_tree(tree):
                                 filled=True)
     graph = graphviz.Source(dot_data, format="png") 
    
-# # Come back to 
-# def test_tree(tree, testing_data):
-#     # test tree
+# Aideen
+def test_tree(root_node, testing_data):
+    test_target = testing_data['style'].values
+    testing_data = testing_data.drop(columns=['style'])
+    test_results = test_data(testing_data, root_node, [])
+    correct = 0
+    for index in range(0, len(test_results)):
+        if test_results[index] == test_target[index]:
+            correct = correct +1
+        else:
+            print(str(test_target[index]) +" incorrectly categorised as "+str(test_results[index]))
+    print("Accuracy: "+str(correct/len(test_results)))
 
 class Node:
     def __init__(self,isLeaf, label, divisor):
@@ -255,11 +224,5 @@ class Node:
         self.isLeaf = isLeaf
         self.divisor = divisor
         self.children = []
-    
-    def left_or_right(self, value):
-        if value <= self.divisor:
-            return 0
-        else:
-            return 1
     
 main()
