@@ -5,21 +5,105 @@ from graphviz import Graph
 from math import log2
 from copy import deepcopy
 from weka_implementation import build_weka_tree
+import PySimpleGUI as sg
+from PIL import Image, ImageTk, ImageSequence
+from multiprocessing import Process, Queue
+import multiprocessing as mp
+import time
 
 def main():
     file = 'beer.csv'
-    split = 2/3
     data = pd.read_csv(file)
-    train_data, test_data = split_data_training_testing(data, (2/3))
-    
-    attributes = ['calorific_value','nitrogen','turbidity','style','alcohol','sugars','bitterness','colour','degree_of_fermentation']
-    root_node = build_tree(train_data, attributes)
+    split = GetSplit()
+    quit = mp.Event()
+    Q = Queue()
+    p1 = Process(target = createTree, args=(data, split, quit, Q,))
+    p2 = Process(target = renderLoadingWindow, args=(quit, ))
+    starttime = time.time()
+    p1.start()
+    p2.start()
+    quit.wait()
+    endtime = time.time()
+    queue_data = Q.get()
+    root_node = queue_data[0]
+    testing_data = queue_data[1]
     print_node_data(root_node, "")
     #visualise_tree(tree)
     
-    test_tree(root_node, test_data)
-    build_weka_tree(file, split)
+    accuracy = test_tree(root_node, testing_data)
+    DisplayTree(accuracy, round(endtime-starttime))
+    #build_weka_tree(file, split)
+
+def createTree(data, data_split, quit, queue):
+    train_data, test_data = split_data_training_testing(data, (data_split))
     
+    attributes = ['calorific_value','nitrogen','turbidity','style','alcohol','sugars','bitterness','colour','degree_of_fermentation']
+    root_node = build_tree(train_data, attributes)
+    queue.put([root_node, test_data])
+    queue.cancel_join_thread()
+    quit.set()
+    return True
+
+def renderLoadingWindow(quit):
+    
+    layout_loading = [[sg.Text("Loading")],[sg.Image(r'loading.gif', key='-IMAGE-')]]
+    
+    # Create the window
+    gif_filename = r'loading.gif'
+    window = sg.Window("Select Train/Test Split", layout_loading, element_justification='c', margins=(0,0), element_padding=(0,0), finalize=True)
+    interframe_duration = Image.open(gif_filename).info['duration']
+    while not quit.is_set():
+        event, values = window.read(timeout=interframe_duration)
+        if event == sg.WIN_CLOSED:
+            exit()
+            break
+        window.FindElement("-IMAGE-").UpdateAnimation("loading.gif",time_between_frames=interframe_duration)
+    
+    window.close()
+    print("Stop Animating")
+    return True
+    
+def GetSplit():
+    layout = [[sg.Text("Select Train/Test Split")],
+        [sg.Radio('1/3',"1", key="1/3"), 
+           sg.Radio('1/2',"1", key="1/2"), 
+           sg.Radio('2/3',"1", key="2/3", default=True)],
+         [sg.Button('Ok'), sg.Button('Quit')]]
+        
+    
+    # Create the window
+    gif_filename = r'loading.gif'
+    window = sg.Window("Select Train/Test Split", layout)
+    while True:
+            event, values = window.read()
+            if event == sg.WIN_CLOSED or event == 'Quit': # if user closes window or clicks cancel
+                break
+            if event == 'Ok':
+                if values["1/3"] == True:
+                    split = (1/3)
+                elif values["1/2"] == True:
+                    split = (1/2)
+                elif values["2/3"] == True:
+                    split = (2/3)
+                break
+                
+    window.close()
+    return split
+
+def DisplayTree(accuracy, time_to_build):
+    layout = [[sg.Image(r'tree2.png', size=(200,200),key='-IMAGE-')],
+        [sg.Text("Accuracy: "+str(accuracy*100)+"%")],
+        [sg.Text("The Tree took "+str(time_to_build)+" seconds to build")],
+        [sg.Button('Quit')]]
+    
+    window = sg.Window("Generated C4.5 Tree", layout)
+    while True:
+        event, values = window.read()
+        if event == sg.WIN_CLOSED or event == 'Quit': # if user closes window or clicks cancel
+            break
+                
+    window.close()
+
 def test_data(data, node, test_results):
     for item in range(0, len(data)):
         test_results.append(test_lr(node, data.iloc[item]))
@@ -62,7 +146,6 @@ def build_tree(data, attributes):
     
     if best_attribute == "":
         majClass = getMajorityClass(data)
-        print("New Leaf with class "+str(majClass))
         return Node(True, majClass, None)
     else:
         #3. split the set (data) in subsets arrcording to value of best_attribute
@@ -216,7 +299,9 @@ def test_tree(root_node, testing_data):
             correct = correct +1
         else:
             print(str(test_target[index]) +" incorrectly categorised as "+str(test_results[index]))
-    print("Accuracy: "+str(correct/len(test_results)))
+    accuracy = correct/len(test_results)
+    print("Accuracy: "+str(accuracy))
+    return accuracy
 
 class Node:
     def __init__(self,isLeaf, label, divisor):
@@ -225,4 +310,5 @@ class Node:
         self.divisor = divisor
         self.children = []
     
-main()
+if __name__ == '__main__':
+    main()
