@@ -91,7 +91,7 @@ def GetSplit():
     return split
 
 def DisplayTree(accuracy, time_to_build):
-    layout = [[sg.Image(r'tree2.png', size=(200,200),key='-IMAGE-')],
+    layout = [[sg.Image(r'tree.png', size=(200,200),key='-IMAGE-')],
         [sg.Text("Accuracy: "+str(accuracy*100)+"%")],
         [sg.Text("The Tree took "+str(time_to_build)+" seconds to build")],
         [sg.Button('Quit')]]
