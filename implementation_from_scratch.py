@@ -94,7 +94,7 @@ def GetSplit():
     return split
 
 def DisplayTree(accuracy, time_to_build):
-    layout = [[sg.Image(r'tree.png', size=(200,200),key='-IMAGE-')],
+    layout = [[sg.Image(r'test.gv.png',key='-IMAGE-')],
         [sg.Text("Accuracy: "+str(accuracy*100)+"%")],
         [sg.Text("The Tree took "+str(time_to_build)+" seconds to build")],
         [sg.Button('Quit')]]
@@ -183,7 +183,8 @@ def print_tree(root_node):
             g.edge(current_node.label, current_node.children[1].label)
             i+=1
             queue.extend(current_node.children)
-    g.render('test.gv', view=True) 
+    g.format = "png"
+    g.render('test.gv', view=False)
 
 # # Louise
 def find_best_attribute(train_data, attributes):
