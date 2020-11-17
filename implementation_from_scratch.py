@@ -1,10 +1,11 @@
 # Main file for the implementation of the C4.5 algorithm
 import pandas as pd
 import numpy as np
-from graphviz import Graph
+import graphviz
+from graphviz import Digraph
 from math import log2
 from copy import deepcopy
-from weka_implementation import build_weka_tree
+#from weka_implementation import build_weka_tree
 import PySimpleGUI as sg
 from PIL import Image, ImageTk, ImageSequence
 from multiprocessing import Process, Queue
@@ -28,7 +29,9 @@ def main():
     root_node = queue_data[0]
     testing_data = queue_data[1]
     print_node_data(root_node, "")
-    #visualise_tree(tree)
+    
+    print("--- Visualize the tree ----")
+    print_tree(root_node)
     
     accuracy = test_tree(root_node, testing_data)
     DisplayTree(accuracy, round(endtime-starttime))
@@ -159,7 +162,28 @@ def build_tree(data, attributes):
             node.children.append(build_tree(attr_subset, remainColumns))
             
         return node
-  
+
+def print_tree(root_node):
+    queue = []
+
+    queue.append(root_node)
+    nodes_per_level_count = 0
+    level_count           = 1
+    current_node          = root_node
+    current_kids          = []
+
+    g = Digraph('G')
+    i=0
+
+    for node in queue:
+        current_node = node
+        if not current_node.isLeaf:
+            g.edge(current_node.label, current_node.children[0].label)
+            i+=1
+            g.edge(current_node.label, current_node.children[1].label)
+            i+=1
+            queue.extend(current_node.children)
+    g.render('test.gv', view=True) 
 
 # # Louise
 def find_best_attribute(train_data, attributes):
@@ -280,14 +304,6 @@ def information_gain(train_target, subsets):
 
     return Gain
 
-# # Louise
-def visualise_tree(tree):
-    dot_data = tree.export_graphviz(clf, out_file=None, 
-                                feature_names=iris.feature_names,  
-                                class_names=iris.target_names,
-                                filled=True)
-    graph = graphviz.Source(dot_data, format="png") 
-   
 # Aideen
 def test_tree(root_node, testing_data):
     test_target = testing_data['style'].values
