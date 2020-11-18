@@ -5,7 +5,7 @@ import graphviz
 from graphviz import Digraph
 from math import log2
 from copy import deepcopy
-#from weka_implementation import build_weka_tree
+from weka_implementation import build_weka_tree
 import PySimpleGUI as sg
 from PIL import Image, ImageTk, ImageSequence
 from multiprocessing import Process, Queue
@@ -16,6 +16,17 @@ def main():
     file = 'beer.csv'
     data = pd.read_csv(file)
     split = GetSplit()
+    
+    root_node, testing_data, python_time_to_build = handle_inputs_and_loading(data, split)
+    print_node_data(root_node, "")
+    
+    print_tree(root_node)
+    
+    python_accuracy = round(test_tree(root_node, testing_data),2)
+    weka_accuracy, weka_time_to_build = build_weka_tree(file, split)
+    DisplayTree(python_accuracy, weka_accuracy, python_time_to_build, weka_time_to_build)
+
+def handle_inputs_and_loading(data, split):
     quit = mp.Event()
     Q = Queue()
     p1 = Process(target = createTree, args=(data, split, quit, Q,))
@@ -26,16 +37,7 @@ def main():
     quit.wait()
     endtime = time.time()
     queue_data = Q.get()
-    root_node = queue_data[0]
-    testing_data = queue_data[1]
-    print_node_data(root_node, "")
-    
-    print("--- Visualize the tree ----")
-    print_tree(root_node)
-    
-    accuracy = test_tree(root_node, testing_data)
-    DisplayTree(accuracy, round(endtime-starttime))
-    #build_weka_tree(file, split)
+    return queue_data[0], queue_data[1], round(endtime-starttime)
 
 def createTree(data, data_split, quit, queue):
     train_data, test_data = split_data_training_testing(data, (data_split))
@@ -53,7 +55,7 @@ def renderLoadingWindow(quit):
     
     # Create the window
     gif_filename = r'loading.gif'
-    window = sg.Window("Select Train/Test Split", layout_loading, element_justification='c', margins=(0,0), element_padding=(0,0), finalize=True)
+    window = sg.Window("Building C4.5 Tree", layout_loading, element_justification='c', margins=(0,0), element_padding=(0,0), finalize=True)
     interframe_duration = Image.open(gif_filename).info['duration']
     while not quit.is_set():
         event, values = window.read(timeout=interframe_duration)
@@ -93,11 +95,40 @@ def GetSplit():
     window.close()
     return split
 
-def DisplayTree(accuracy, time_to_build):
-    layout = [[sg.Image(r'test.gv.png',key='-IMAGE-')],
-        [sg.Text("Accuracy: "+str(accuracy*100)+"%")],
-        [sg.Text("The Tree took "+str(time_to_build)+" seconds to build")],
-        [sg.Button('Quit')]]
+import PIL.Image
+import io
+import base64
+
+def resize_images():
+    for image in (r'weka-test.gv.png', r'test.gv.png'):
+        img = PIL.Image.open(image)
+        img = img.resize((400, 400), PIL.Image.ANTIALIAS)
+        img.save(image, format="PNG")
+
+def DisplayTree(python_accuracy, weka_accuracy, p_time_to_build, w_time_to_build):
+    
+    resize_images()
+        
+    weka_column = [
+        [sg.Text("Weka Implementation",font=('Helvetica 20'))],
+        [sg.Image(r'weka-test.gv.png',key='-IMAGE-')],
+        [sg.Text("Accuracy: "+str(weka_accuracy)+"%")],
+        [sg.Text("The Tree took "+str(w_time_to_build)+" seconds to build")]
+    ]
+    python_column = [
+        [sg.Text("Our Python Implementation",font=('Helvetica 20'))],
+        [sg.Image(r'test.gv.png',key='-IMAGE-')],
+        [sg.Text("Accuracy: "+str(python_accuracy*100)+"%")],
+        [sg.Text("The Tree took "+str(p_time_to_build)+" seconds to build")]
+    ]
+    
+    layout = [
+        [
+            sg.Column(weka_column),
+            sg.Column(python_column)
+        ],
+        [sg.Button('Quit')],
+    ]
     
     window = sg.Window("Generated C4.5 Tree", layout)
     while True:
