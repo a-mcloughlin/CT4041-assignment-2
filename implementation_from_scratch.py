@@ -11,34 +11,72 @@ from PIL import Image, ImageTk, ImageSequence
 from multiprocessing import Process, Queue
 import multiprocessing as mp
 import time
+import os.path
+from os import path
+import PIL.Image
+import io
+import base64
 
+# Louise and Aideen
 def main():
-    file = 'beer.csv'
-    data = pd.read_csv(file)
-    split = GetSplit()
     
-    root_node, testing_data, python_time_to_build = handle_inputs_and_loading(data, split)
-    print_node_data(root_node, "")
+    # Get the data, the train/test split percentage and the filepath of the data location
+    data, split, file = gather_data()
     
+    # While animate a 'loading' gif to show that the process is running,
+    # Build a C4.5 tree from the data. 
+    # Return the root node of the tree, the dataset to use in testing and the time it took to build the tree
+    root_node, testing_data, python_time_to_build = createTreeWhileShowingLoadingWindow(data, split)
+    
+    # Draw the tree and store it in png format
     print_tree(root_node)
     
-    python_accuracy = round(test_tree(root_node, testing_data),2)
+    # Calculate the accuracy of the built tree using the testing data
+    python_accuracy = test_tree(root_node, testing_data)
+    
+    # Build a tree using the same data in weka. 
+    # Draw the weka tree and store it in png format
+    # Get the accuracy of the weka tree, and the time it took to construct
     weka_accuracy, weka_time_to_build = build_weka_tree(file, split)
-    DisplayTree(python_accuracy, weka_accuracy, python_time_to_build, weka_time_to_build)
+    
+    # Display both trees side to side, with their accuracies, and the time it took to build them
+    DisplayTreesPopup(python_accuracy, weka_accuracy, python_time_to_build, weka_time_to_build)
 
-def handle_inputs_and_loading(data, split):
+
+# Aideen McLoughlin - 17346123
+# Using python multiprocessing, build a tree while showing a 'loading' animation
+def createTreeWhileShowingLoadingWindow(data, split):
+    
+    # Create an 'Event' to indicate when the tree is built
     quit = mp.Event()
+    # Create a 'Queue' to store generated values in
     Q = Queue()
+    
+    # Define both processes in the multiprocessing - the tree creation and the loading animation
     p1 = Process(target = createTree, args=(data, split, quit, Q,))
     p2 = Process(target = renderLoadingWindow, args=(quit, ))
+    
+    # Store the time before starting to build the tree
     starttime = time.time()
+    
+    # Start both processes
     p1.start()
     p2.start()
+    
+    # Wait for the quit event to be set, whch will happen once the tree is built
     quit.wait()
+    
+    # Store the time once the tree has been built
     endtime = time.time()
+    
+    # Get the data stored in the Queue
     queue_data = Q.get()
+    
+    # Return the Queue data and the time to build
     return queue_data[0], queue_data[1], round(endtime-starttime)
 
+
+# louise
 def createTree(data, data_split, quit, queue):
     train_data, test_data = split_data_training_testing(data, (data_split))
     
@@ -49,14 +87,17 @@ def createTree(data, data_split, quit, queue):
     quit.set()
     return True
 
+
+# Aideen McLoughlin - 17346123
 def renderLoadingWindow(quit):
-    
+    # Declare the PySimpleGUI layout for the popup window
     layout_loading = [[sg.Text("Loading")],[sg.Image(r'loading.gif', key='-IMAGE-')]]
     
-    # Create the window
-    gif_filename = r'loading.gif'
+    # Create the popup window
     window = sg.Window("Building C4.5 Tree", layout_loading, element_justification='c', margins=(0,0), element_padding=(0,0), finalize=True)
-    interframe_duration = Image.open(gif_filename).info['duration']
+    
+    # Animate the loading gif for the duration of time that 'quit' is not set
+    interframe_duration = Image.open(r'loading.gif').info['duration']
     while not quit.is_set():
         event, values = window.read(timeout=interframe_duration)
         if event == sg.WIN_CLOSED:
@@ -64,51 +105,84 @@ def renderLoadingWindow(quit):
             break
         window.FindElement("-IMAGE-").UpdateAnimation("loading.gif",time_between_frames=interframe_duration)
     
+    # Close the popup window
     window.close()
-    print("Stop Animating")
     return True
-    
-def GetSplit():
-    layout = [[sg.Text("Select Train/Test Split")],
+
+
+# Aideen McLoughlin - 17346123
+def getInputData():
+    # Declare the PySimpleGUI layout for the popup window
+    layout = [
+        [sg.Text('Data file: '), sg.InputText("beer.csv", key="file")], 
+        [sg.Text("Select Train/Test Data Split")],
         [sg.Radio('1/3',"1", key="1/3"), 
            sg.Radio('1/2',"1", key="1/2"), 
            sg.Radio('2/3',"1", key="2/3", default=True)],
          [sg.Button('Ok'), sg.Button('Quit')]]
         
     
-    # Create the window
-    gif_filename = r'loading.gif'
+    # Create the popup window
     window = sg.Window("Select Train/Test Split", layout)
+    
+    # Loop until the window is closed with 'x' 'OK' or 'Quit'
+    # Set split to be the selected train/test split value
+    # And set the filepath to be the contents of the InputText box (default beer.csv)
     while True:
-            event, values = window.read()
-            if event == sg.WIN_CLOSED or event == 'Quit': # if user closes window or clicks cancel
-                break
-            if event == 'Ok':
-                if values["1/3"] == True:
-                    split = (1/3)
-                elif values["1/2"] == True:
-                    split = (1/2)
-                elif values["2/3"] == True:
-                    split = (2/3)
-                break
-                
+        event, values = window.read()
+        if event == sg.WIN_CLOSED or event == 'Quit':
+            break
+        if event == 'Ok':
+            if values["1/3"] == True:
+                split = (1/3)
+            elif values["1/2"] == True:
+                split = (1/2)
+            elif values["2/3"] == True:
+                split = (2/3)
+            break
+    filepath = values["file"]
+    
+    # Close the popup window
     window.close()
-    return split
+    return split, filepath
 
-import PIL.Image
-import io
-import base64
 
+# Aideen McLoughlin - 17346123
+def errorWindow(text):
+    # Declare the PySimpleGUI layout for the popup window
+    layout = [[sg.Text(text)],[sg.Button('Ok')]]
+    
+    # Create the popup window 
+    window = sg.Window("Error", layout)
+    
+    # Display a popup window with the text passed as a function param, until the user closes the window
+    while True:
+        event, values = window.read()
+        if event == sg.WIN_CLOSED or event == 'Ok':
+            break
+    
+    # Close the popup window
+    window.close()
+
+  
+# Aideen McLoughlin - 17346123
+# Resixe the tree png images to be equal and fit nicely into the popup window
 def resize_images():
     for image in (r'weka-test.gv.png', r'test.gv.png'):
         img = PIL.Image.open(image)
         img = img.resize((400, 400), PIL.Image.ANTIALIAS)
         img.save(image, format="PNG")
 
-def DisplayTree(python_accuracy, weka_accuracy, p_time_to_build, w_time_to_build):
+
+# Aideen McLoughlin - 17346123
+def DisplayTreesPopup(python_accuracy, weka_accuracy, p_time_to_build, w_time_to_build):
     
+    # Resize the tree images to be the right size for the popup
     resize_images()
-        
+    
+    # Define 2 columns for the layout
+    # The right one for the custome python implementation from scratch
+    # The left one for the implementation with weka
     weka_column = [
         [sg.Text("Weka Implementation",font=('Helvetica 20'))],
         [sg.Image(r'weka-test.gv.png',key='-IMAGE-')],
@@ -122,6 +196,7 @@ def DisplayTree(python_accuracy, weka_accuracy, p_time_to_build, w_time_to_build
         [sg.Text("The Tree took "+str(p_time_to_build)+" seconds to build")]
     ]
     
+    # Declare the PySimpleGUI layout for the popup window with the two columns, and a QUIT button
     layout = [
         [
             sg.Column(weka_column),
@@ -130,41 +205,20 @@ def DisplayTree(python_accuracy, weka_accuracy, p_time_to_build, w_time_to_build
         [sg.Button('Quit')],
     ]
     
+    # Create the popup window 
     window = sg.Window("Generated C4.5 Tree", layout)
+    
+    # Display the popup window  until the user closes it
     while True:
         event, values = window.read()
         if event == sg.WIN_CLOSED or event == 'Quit': # if user closes window or clicks cancel
             break
-                
+     
+    # Close the popup window           
     window.close()
 
-def test_data(data, node, test_results):
-    for item in range(0, len(data)):
-        test_results.append(test_lr(node, data.iloc[item]))
-    return test_results
-            
-def test_lr(node, row):
-    if node.isLeaf:
-        return node.label
-    else:
-        if row[node.label] <= node.divisor:
-            return test_lr(node.children[0], row)
-        else:
-            return test_lr(node.children[1], row)
-        
-def print_node_data(node, indent):
-    print("-------------")
-    print(indent+"Label:    "+str(node.label))
-    print(indent+"Is Leaf:  "+str(node.isLeaf))
-    print(indent+"Threshold Value:  x > "+str(node.divisor))
-    if node.children != []:
-        print(indent+"Children: ")
-        for child in node.children:
-            print_node_data(child, indent+"\t")
-    else:
-        print(indent+"No Children")
-# 
-#
+     
+# louise
 def build_tree(data, attributes):
     #1. check above base cases
         #•  All the examples from the training set belong to the same class ( a tree leaf labeled with that class is returned ).
@@ -194,6 +248,8 @@ def build_tree(data, attributes):
             
         return node
 
+
+# Louise
 def print_tree(root_node):
     queue = []
 
@@ -217,7 +273,8 @@ def print_tree(root_node):
     g.format = "png"
     g.render('test.gv', view=False)
 
-# # Louise
+
+# Louise
 def find_best_attribute(train_data, attributes):
     #  Returns the best attribute from all
     best_information_gain = 0
@@ -235,13 +292,15 @@ def find_best_attribute(train_data, attributes):
                 threshold_divisor = temp_divisor
     
     return best_attribute, subsets, threshold_divisor
-    
 
+
+# Louise
 def getMajorityClass(data):
     grouped = data.groupby(data['style'])
     return max(grouped.groups)
 
 
+# Louise
 def split_into_subsets(column_header, training_data):
     split_values = []
     maxEnt = -1*float("inf")
@@ -267,41 +326,82 @@ def split_into_subsets(column_header, training_data):
                     maxEnt = igain
     return split_values, best_threshold
 
-# Aideen
+
+# Aideen McLoughlin - 17346123
+# Split the python DataFrame object into 3 dataFrame objects
+# One storing all the values with the syle 'ale'
+# One storing all the values with the syle 'lager'
+# and One storing all the values with the syle 'stout'
 def split_data_styles(data):
+    
+    # Declare empty subsets array
     subsets = {}
+    
+    #Group the data passed to the function by its style
     grouped = data.groupby(data['style'])
+    
+    # For each style name, add the values in that group to the subsets array as a new Dataframe object
     for index, beer_style in enumerate(['ale','lager','stout']):
         if beer_style in grouped.groups.keys():
             subsets[index] = grouped.get_group(beer_style)
         else:
             subsets[index] = {}
+    
+    # return the subsets array of DataFrame objects
     return subsets
 
-# Aideen 
+
+# Aideen McLoughlin - 17346123
+# Split the data into training and testing datasets
 def split_data_training_testing(data, ratio):
 
+    # Find the divisonpoint in the file at which to divide
     division_point = round(len(data)*ratio)
-    headers = data.iloc[0]
     
+    # Drop the beer_id column as it is not relevant to the beer style
     data = data.drop(columns=['beer_id'])
     
+    # Get a random sample from the data file as the training data
+    # This data will be ratio% of the initial dataset
     train = data.sample(frac=ratio,random_state=5)
-    test = data.sample(frac=(1-ratio),random_state=5)
+    
+    # Get the rest of the dataset values as the testing data
+    test = data.merge(train, how='left', indicator=True)
+    test = test[(test['_merge']=='left_only')].copy()
+    test = test.drop(columns='_merge').copy()
+    # Return the training and testing data
     return train, test
 
-def split_into_data_target(train, test):
-    train_data = train.drop(columns=['style'])
-    train_target = train['style'].values
-    test_data = test.drop(columns=['style'])
-    test_target = test['style'].values
-    return train_data, train_target, test_data, test_target
 
-# Aideen 
-def read_csv_data(csv_path):
-    data = pd.read_csv(csv_path)
-    return data
+# Aideen McLoughlin - 17346123
+# Get the filepath of the data file, and the train/test data split fro user imput in a PySimpleGUI popup
+# If a filepath provided is not valid, prompt the user to input a new filepath. 
+# Repeat until a valid filepath is provided
+def gather_data():
+    
+    # Get the train/test split and the filepath of the data file
+    split, filepath = getInputData()
+    
+    # Create an empty pandas dataframe element
+    data = pd.DataFrame()
+    
+    # While the dataframe element remains empty
+    while data.empty:
+        
+        # Check If the filepath is valid
+        if path.isfile(filepath):
+            # If it is, set the data to be the csv data at that filepath
+            data = pd.read_csv(filepath)
+        else:
+            # If it is not valid, Display an error pop-up and prompt the user to imput the split and filepath again
+            errorWindow("File not found, please try again")
+            split, filepath = getInputData()
+    
+    # Once the dataframe element is filled, return the data, the train/test split percentage and the filepath (For use in the weka implementation)
+    return data, split, filepath
 
+
+# Louise
 def data_class_check(data):
     for index, row in data.iterrows():
         if row.iloc[-1] != data.iloc[0].iloc[-1]:
@@ -309,17 +409,32 @@ def data_class_check(data):
     return data.iloc[0].iloc[-1]
 
 
-# # Aideen
-def entropy(training_data):
+# Aideen McLoughlin - 17346123
+# Calculate the entropy of the passed data set
+def entropy(dataset):
+    
+    # Initialise entropy to zero value
     entropy = 0
-    subsets = split_data_styles(training_data)
+    
+    # Get the ale, lager and stout subset DataFrames from the passed dataset
+    subsets = split_data_styles(dataset)
+    
+    # For each subset
     for index in range(len(subsets)):
-        probability = len(subsets[index])/ len(training_data)
+        
+        # Get the percentage of the dataset which is in the subset
+        probability = len(subsets[index])/ len(dataset)
+        
+        # If the probability is not zero,
+        # Subtract plog2(p) from the entropy value where p is probability
         if probability != 0:
             entropy = entropy - (probability)*log2(probability)
+            
+    # Return the entropy value
     return entropy
 
-# # Louise
+
+# Louise
 def information_gain(train_target, subsets):
     # Gain calculation for this function following the lecture notes.
     #Gain = Ent(S) - |S beer =ale |/|S|*( Ent( S beer=ale )) -  |S beer=stout |/|S|*( Ent( S beer=stout )) - |S beer=lager |/|S|*( Ent( S beer=lager )) - ....
@@ -336,27 +451,72 @@ def information_gain(train_target, subsets):
 
     return Gain
 
-# Aideen
+
+# Aideen McLoughlin - 17346123
+# Test the built tree using the testing data
 def test_tree(root_node, testing_data):
+    
+    # Get the style as the target values, and then drop them from the testing dataset
     test_target = testing_data['style'].values
     testing_data = testing_data.drop(columns=['style'])
+    
+    # get the results of the tree predictions for all the testing data values
     test_results = test_data(testing_data, root_node, [])
+    
+    # Initialise the number of correct entries to 0
     correct = 0
+    
+    # For each test result, check if it is accurate using the style values we removed from the Dataframe earlier
+    # Keep a count of the number of correct predictions
+    # If the prediction is wrong, print the incorrect predicton
     for index in range(0, len(test_results)):
         if test_results[index] == test_target[index]:
             correct = correct +1
         else:
             print(str(test_target[index]) +" incorrectly categorised as "+str(test_results[index]))
-    accuracy = correct/len(test_results)
-    print("Accuracy: "+str(accuracy))
+            
+    # Calculate the accuracy to 2 decimal places, and return it
+    accuracy = round(correct/len(test_results),2)
     return accuracy
 
+
+# Aideen McLoughlin - 17346123
+# Using the root node of the constructed tree, predict the output of all the test data inputs
+def test_data(data, node, test_results):
+    
+    # For each data value, get the predicted result
+    for item in range(0, len(data)):
+        test_results.append(test_lr(node, data.iloc[item]))
+        
+    # return the set of all predicted results
+    return test_results
+
+
+# Aideen McLoughlin - 17346123
+# Get the final leaf node destination for a data row
+def test_lr(node, row):
+    
+    # Decide which child path of a node to proceed into, based on the input value.
+    # This function will call itself recursively until it reaches a leaf node
+    # That leaf node will be returned to the function which called it
+    if node.isLeaf:
+        return node.label
+    else:
+        if row[node.label] <= node.divisor:
+            return test_lr(node.children[0], row)
+        else:
+            return test_lr(node.children[1], row)
+
+
+# Louise
 class Node:
     def __init__(self,isLeaf, label, divisor):
         self.label = label
         self.isLeaf = isLeaf
         self.divisor = divisor
         self.children = []
-    
+
+ 
+# Louise and Aideen 
 if __name__ == '__main__':
     main()
