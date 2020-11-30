@@ -76,12 +76,18 @@ def createTreeWhileShowingLoadingWindow(data, split):
     return queue_data[0], queue_data[1], round(endtime-starttime)
 
 
-# louise
+# louise Kilheeney -16100463 
 def createTree(data, data_split, quit, queue):
+
+    #call function to split the data into training and test data. 
     train_data, test_data = split_data_training_testing(data, (data_split))
     
+    #list of attributes in the data
     attributes = ['calorific_value','nitrogen','turbidity','style','alcohol','sugars','bitterness','colour','degree_of_fermentation']
+
+    #calling function to build tree with the traning data and list of attributes 
     root_node = build_tree(train_data, attributes)
+
     queue.put([root_node, test_data])
     queue.cancel_join_thread()
     quit.set()
@@ -218,7 +224,7 @@ def DisplayTreesPopup(python_accuracy, weka_accuracy, p_time_to_build, w_time_to
     window.close()
 
      
-# louise
+# louise Kilheeney - 16100463
 def build_tree(data, attributes):
     #1. check above base cases
         #•  All the examples from the training set belong to the same class ( a tree leaf labeled with that class is returned ).
@@ -229,10 +235,13 @@ def build_tree(data, attributes):
     # elif data_class_checked is not False:		
 	#     return Node(True, data_class_checked, None)
 
-    #2. find attribute with highest info gain, retrun best_attribute - done
+    #2. find attribute with highest info gain, retrun best_attribute
+        # calling function find-best-attribute which retruns the best attribute, the attribute subsets and the threshold divisor 
     best_attribute, attribute_subsets, threshold_divisor  = find_best_attribute(data, attributes)
     
+    #if best attribute is empthy 
     if best_attribute == "":
+        #calling function get majorityclass to return the majority class
         majClass = getMajorityClass(data)
         return Node(True, majClass, None)
     else:
@@ -249,7 +258,8 @@ def build_tree(data, attributes):
         return node
 
 
-# Louise
+
+# Louise Kilheeney - 16100463
 # Generate a png of the tree from the root node
 def print_tree(root_node):
     
@@ -263,7 +273,7 @@ def print_tree(root_node):
     g.format = "png"
     g.render('test.gv', view=False)
     
-# Louise
+# Louise Kilheeney - 16100463
 # Add a node to the tree
 def addEl(node, g, rootname):
     
@@ -273,7 +283,7 @@ def addEl(node, g, rootname):
         g.node(name=str(rootname), label=node.label)
         
         # Create an edge from the node to its left child
-        nodename1 = rootname+'b'
+        nodename1 = rootname+'b
         g.edge(rootname, nodename1, label="<= "+str(round(node.divisor,2)))
         # Recursively add the nodes left child
         addEl(node.children[0],g,nodename1)
@@ -287,7 +297,7 @@ def addEl(node, g, rootname):
         # If the node is a leaf, add it while styling it as a leaf
         g.node(name=rootname, label=node.label, shape='box', style='filled')
 
-# Louise
+# Louise Kilheeney - 16100463
 def find_best_attribute(train_data, attributes):
     #  Returns the best attribute from all
     best_information_gain = 0
@@ -295,25 +305,35 @@ def find_best_attribute(train_data, attributes):
     threshold_divisor = ""
     subsets = []
     for attribute in attributes:
+        #making sure not to include style 
         if attribute != 'style':
+
+            #calling function split_into_subsets
             temp_subsets, temp_divisor = split_into_subsets(attribute, train_data)
+
+            # temp gain is equal to the information gain function for the train_data and the subsets. 
             temp_gain = information_gain(train_data, temp_subsets)
+
+            #check for the best attribute 
             if temp_gain > best_information_gain:
                 best_attribute = attribute
                 best_information_gain = temp_gain
                 subsets = temp_subsets
                 threshold_divisor = temp_divisor
-    
+    # return the best attribute , subsets and the threshold divisor 
     return best_attribute, subsets, threshold_divisor
 
 
-# Louise
+# Louise Kilheeney - 16100463 
+# Function to get the majority class of the data been passed in. 
 def getMajorityClass(data):
+    #find the majority class in the data with the data - style
     grouped = data.groupby(data['style'])
+    #return majority class 
     return max(grouped.groups)
 
 
-# Louise
+# Louise Kilheeney - 16100463
 def split_into_subsets(column_header, training_data):
     split_values = []
     maxEnt = -1*float("inf")
@@ -411,7 +431,7 @@ def gather_data():
     return data, split, filepath
 
 
-# Louise
+# Louise Kilheeney - 16100463
 def data_class_check(data):
     for index, row in data.iterrows():
         if row.iloc[-1] != data.iloc[0].iloc[-1]:
@@ -444,21 +464,24 @@ def entropy(dataset):
     return entropy
 
 
-# Louise
+# Louise Kilheeney - 16100463
+# function to calculate the information gain 
 def information_gain(train_target, subsets):
-    # Gain calculation for this function following the lecture notes.
-    #Gain = Ent(S) - |S beer =ale |/|S|*( Ent( S beer=ale )) -  |S beer=stout |/|S|*( Ent( S beer=stout )) - |S beer=lager |/|S|*( Ent( S beer=lager )) - ....
+    #getting the entropy value of  the train_target
     entropyTarget = entropy(train_target)
     total = len(train_target)
 
     Gain = entropyTarget
 
+    #for each subset
     for i in range(0, len(subsets)):
+        #length of each subset 
         numBeer = len(subsets[i])
+        #Gain = Ent(S) - |S beer =ale |/|S|*( Ent( S beer=ale )) -  |S beer=stout |/|S|*( Ent( S beer=stout )) - |S beer=lager |/|S|*( Ent( S beer=lager )) - ....
         firstPart = numBeer/total
         secondPart = entropy(subsets[i])
         Gain -= (firstPart*secondPart)
-
+    # Return the information gain value
     return Gain
 
 
@@ -518,7 +541,8 @@ def test_lr(node, row):
             return test_lr(node.children[1], row)
 
 
-# Louise
+# Louise Kilheeney - 16100463 
+# Node class
 class Node:
     def __init__(self,isLeaf, label, divisor):
         self.label = label
