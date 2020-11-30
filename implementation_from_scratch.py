@@ -17,7 +17,7 @@ import PIL.Image
 import io
 import base64
 
-# Louise and Aideen
+# Louise Kilheeney - 16100463
 def main():
     
     # Get the data, the train/test split percentage and the filepath of the data location
@@ -76,7 +76,7 @@ def createTreeWhileShowingLoadingWindow(data, split):
     return queue_data[0], queue_data[1], round(endtime-starttime)
 
 
-# louise Kilheeney -16100463 
+# louise Kilheeney -16100463
 def createTree(data, data_split, quit, queue):
 
     #call function to split the data into training and test data. 
@@ -283,7 +283,7 @@ def addEl(node, g, rootname):
         g.node(name=str(rootname), label=node.label)
         
         # Create an edge from the node to its left child
-        nodename1 = rootname+'b
+        nodename1 = rootname+'b'
         g.edge(rootname, nodename1, label="<= "+str(round(node.divisor,2)))
         # Recursively add the nodes left child
         addEl(node.children[0],g,nodename1)
@@ -324,7 +324,7 @@ def find_best_attribute(train_data, attributes):
     return best_attribute, subsets, threshold_divisor
 
 
-# Louise Kilheeney - 16100463 
+# Louise Kilheeney - 16100463
 # Function to get the majority class of the data been passed in. 
 def getMajorityClass(data):
     #find the majority class in the data with the data - style
@@ -384,7 +384,7 @@ def split_data_styles(data):
     return subsets
 
 
-# Aideen McLoughlin - 17346123
+# Louise Kilheeney - 16100463
 # Split the data into training and testing datasets
 def split_data_training_testing(data, ratio):
 
@@ -403,7 +403,7 @@ def split_data_training_testing(data, ratio):
     return train, test
 
 
-# Aideen McLoughlin - 17346123
+# Louise Kilheeney - 16100463
 # Get the filepath of the data file, and the train/test data split fro user imput in a PySimpleGUI popup
 # If a filepath provided is not valid, prompt the user to input a new filepath. 
 # Repeat until a valid filepath is provided
@@ -541,7 +541,7 @@ def test_lr(node, row):
             return test_lr(node.children[1], row)
 
 
-# Louise Kilheeney - 16100463 
+# Louise Kilheeney - 16100463
 # Node class
 class Node:
     def __init__(self,isLeaf, label, divisor):
@@ -551,6 +551,7 @@ class Node:
         self.children = []
 
  
-# Louise and Aideen 
+# Louise Kilheeney - 16100463
+# Set the main function to run when the file is run
 if __name__ == '__main__':
     main()
