@@ -258,33 +258,44 @@ def build_tree(data, attributes):
         return node
 
 
+
 # Louise Kilheeney - 16100463
-def print_tree(root_node): 
-    queue = []
-
-    #queue with the root_node 
-    queue.append(root_node)
-    current_node = root_node
-  
-    #using graphviz digraph as a means to print the tree 
-    g = Digraph('G')
-    i=0
-
-    for node in queue:
-        current_node = node
-        if not current_node.isLeaf:
-            #place node to the right of the parent node  
-            g.edge(current_node.label, current_node.children[0].label)
-            i+=1
-            #place node to left of the parent node
-            g.edge(current_node.label, current_node.children[1].label)
-            i+=1
-            #place the current nodes children in the queue 
-            queue.extend(current_node.children)
+# Generate a png of the tree from the root node
+def print_tree(root_node):
+    
+    # Create a diagraph in which to store the tree data
+    g = Digraph('python_tree_implementation')
+    
+    # Add the root node, and all its children recursively
+    addEl(root_node, g, 'a')
+    
+    # Format the graph as a png, and save it
     g.format = "png"
-    #show graph 
     g.render('test.gv', view=False)
-
+    
+# Louise Kilheeney - 16100463
+# Add a node to the tree
+def addEl(node, g, rootname):
+    
+    # If the node is not a leaf
+    if not node.isLeaf:
+        #Create the node
+        g.node(name=str(rootname), label=node.label)
+        
+        # Create an edge from the node to its left child
+        nodename1 = rootname+'b
+        g.edge(rootname, nodename1, label="<= "+str(round(node.divisor,2)))
+        # Recursively add the nodes left child
+        addEl(node.children[0],g,nodename1)
+        
+        # Create an edge from the node to its right child
+        nodenamec = rootname + 'c'
+        g.edge(rootname, nodenamec, label="> "+str(round(node.divisor,2)))
+        # Recursively add the nodes right child
+        addEl(node.children[1],g,nodenamec)
+    else:
+        # If the node is a leaf, add it while styling it as a leaf
+        g.node(name=rootname, label=node.label, shape='box', style='filled')
 
 # Louise Kilheeney - 16100463
 def find_best_attribute(train_data, attributes):
@@ -297,7 +308,7 @@ def find_best_attribute(train_data, attributes):
         #making sure not to include style 
         if attribute != 'style':
 
-            #calling function spplit_into_subsets
+            #calling function split_into_subsets
             temp_subsets, temp_divisor = split_into_subsets(attribute, train_data)
 
             # temp gain is equal to the information gain function for the train_data and the subsets. 
@@ -377,9 +388,6 @@ def split_data_styles(data):
 # Split the data into training and testing datasets
 def split_data_training_testing(data, ratio):
 
-    # Find the divisonpoint in the file at which to divide
-    division_point = round(len(data)*ratio)
-    
     # Drop the beer_id column as it is not relevant to the beer style
     data = data.drop(columns=['beer_id'])
     
