@@ -16,6 +16,8 @@ from os import path
 import PIL.Image
 import io
 import base64
+import math
+
 
 # Louise Kilheeney - 16100463
 def main():
@@ -39,8 +41,27 @@ def main():
     # Get the accuracy of the weka tree, and the time it took to construct
     weka_accuracy, weka_time_to_build = build_weka_tree(file, split)
     
+    python_time = processTimes(python_time_to_build)
+    weka_time = processTimes(weka_time_to_build)
+    
     # Display both trees side to side, with their accuracies, and the time it took to build them
-    DisplayTreesPopup(python_accuracy, weka_accuracy, python_time_to_build, weka_time_to_build)
+    DisplayTreesPopup(python_accuracy, weka_accuracy, python_time, weka_time)
+
+
+# Aideen McLoughlin - 17346123
+# Take in the time it took to run a process in seconds
+# and return a nicely scaled representation of that value
+def processTimes(time):
+    if time < 1:
+        scaledtime = round(time * 1000)
+        timemsg = str(scaledtime) + " milliseconds"
+    elif time <= 60:
+        timemsg = str(round(time)) + " seconds"
+    else:
+        minutes = math.floor(time/60)
+        seconds = round(time - minutes*60)
+        timemsg = str(minutes) + " minutes and "+str(seconds)+" seconds"
+    return "The tree took " + timemsg + " to build"
 
 
 # Aideen McLoughlin - 17346123
@@ -73,7 +94,7 @@ def createTreeWhileShowingLoadingWindow(data, split):
     queue_data = Q.get()
     
     # Return the Queue data and the time to build
-    return queue_data[0], queue_data[1], round(endtime-starttime)
+    return queue_data[0], queue_data[1], endtime-starttime
 
 
 # louise Kilheeney -16100463
@@ -181,7 +202,7 @@ def resize_images():
 
 
 # Aideen McLoughlin - 17346123
-def DisplayTreesPopup(python_accuracy, weka_accuracy, p_time_to_build, w_time_to_build):
+def DisplayTreesPopup(python_accuracy, weka_accuracy, p_time, w_time):
     
     # Resize the tree images to be the right size for the popup
     resize_images()
@@ -193,13 +214,13 @@ def DisplayTreesPopup(python_accuracy, weka_accuracy, p_time_to_build, w_time_to
         [sg.Text("Weka Implementation",font=('Helvetica 20'))],
         [sg.Image(r'weka-test.gv.png',key='-IMAGE-')],
         [sg.Text("Accuracy: "+str(weka_accuracy)+"%")],
-        [sg.Text("The Tree took "+str(w_time_to_build)+" seconds to build")]
+        [sg.Text(w_time)]
     ]
     python_column = [
         [sg.Text("Our Python Implementation",font=('Helvetica 20'))],
         [sg.Image(r'test.gv.png',key='-IMAGE-')],
         [sg.Text("Accuracy: "+str(python_accuracy*100)+"%")],
-        [sg.Text("The Tree took "+str(p_time_to_build)+" seconds to build")]
+        [sg.Text(p_time)]
     ]
     
     # Declare the PySimpleGUI layout for the popup window with the two columns, and a QUIT button
