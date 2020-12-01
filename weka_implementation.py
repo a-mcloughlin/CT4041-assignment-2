@@ -8,6 +8,7 @@ from weka.classifiers import Classifier, Evaluation, PredictionOutput
 import weka.plot.graph as graph
 import graphviz
 import time
+import pandas as pd
 
 # Aideen McLoughlin - 17346123
 # Taking in the data file location, and the train/test split proportion
@@ -51,6 +52,17 @@ def build_weka_tree(data_file, data_split):
     
     # Get the accuracy of the predicted data
     evl.test_model(cls, test, output=output)
+    pred = []
+    classes = ['ale','lager','stout']
+    for index, inst in enumerate(test):
+        pred.append(classes[int(cls.classify_instance(inst))])
+        
+    df = pd.DataFrame()
+    df['Actual'] =  test.subset(col_names=['style'])
+    df['Predicted'] = pred
+    print(evl.predictions)
+    df.to_csv('weka-results.csv',index=False,header=True)
+    
     correct = evl.percent_correct
     jvm.stop()
     return round(correct, 2), endtime-starttime

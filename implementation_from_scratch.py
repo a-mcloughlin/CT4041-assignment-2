@@ -517,6 +517,12 @@ def test_tree(root_node, testing_data):
     # get the results of the tree predictions for all the testing data values
     test_results = test_data(testing_data, root_node, [])
     
+    df = pd.DataFrame()
+    df['Actual'] += test_target
+    df['Predicted'] += test_results
+    
+    df.to_csv('python-results.csv',index=False,header=True)
+    
     # Initialise the number of correct entries to 0
     correct = 0
     
@@ -541,7 +547,7 @@ def test_data(data, node, test_results):
     # For each data value, get the predicted result
     for item in range(0, len(data)):
         test_results.append(test_lr(node, data.iloc[item]))
-        
+    
     # return the set of all predicted results
     return test_results
 
