@@ -5,7 +5,7 @@ import graphviz
 from graphviz import Digraph
 from math import log2
 from copy import deepcopy
-from weka_implementation import build_weka_tree
+from weka_implementation import build_weka_tree_split, build_weka_tree_seperate
 import PySimpleGUI as sg
 from PIL import Image, ImageTk, ImageSequence
 from multiprocessing import Process, Queue
@@ -23,12 +23,12 @@ import math
 def main():
     
     # Get the data, the train/test split percentage and the filepath of the data location
-    data, split, file = gather_data()
-    
+    data, split, filepath, test_data, filetrain, filetest = gather_data()
+
     # While animate a 'loading' gif to show that the process is running,
     # Build a C4.5 tree from the data. 
     # Return the root node of the tree, the dataset to use in testing and the time it took to build the tree
-    root_node, testing_data, python_time_to_build = createTreeWhileShowingLoadingWindow(data, split)
+    root_node, testing_data, python_time_to_build = createTreeWhileShowingLoadingWindow(data, split, test_data)
     
     # Draw the tree and store it in png format
     print_tree(root_node)
@@ -39,7 +39,10 @@ def main():
     # Build a tree using the same data in weka. 
     # Draw the weka tree and store it in png format
     # Get the accuracy of the weka tree, and the time it took to construct
-    weka_accuracy, weka_time_to_build = build_weka_tree(file, split)
+    if split != 0: 
+        weka_accuracy, weka_time_to_build = build_weka_tree_split(filepath, split)
+    else:
+        weka_accuracy, weka_time_to_build = build_weka_tree_seperate(filetrain, filetest)
     
     python_time = processTimes(python_time_to_build)
     weka_time = processTimes(weka_time_to_build)
@@ -47,7 +50,18 @@ def main():
     # Display both trees side to side, with their accuracies, and the time it took to build them
     DisplayTreesPopup(python_accuracy, weka_accuracy, python_time, weka_time)
 
-
+def print_node_data(node, indent):
+    print("-------------")
+    print(indent+"Label:    "+str(node.label))
+    print(indent+"Is Leaf:  "+str(node.isLeaf))
+    print(indent+"Threshold Value:  x > "+str(node.divisor))
+    if node.children != []:
+        print(indent+"Children: ")
+        for child in node.children:
+            print_node_data(child, indent+"\t")
+    else:
+        print(indent+"No Children")
+        
 # Aideen McLoughlin - 17346123
 # Take in the time it took to run a process in seconds
 # and return a nicely scaled representation of that value
@@ -66,7 +80,7 @@ def processTimes(time):
 
 # Aideen McLoughlin - 17346123
 # Using python multiprocessing, build a tree while showing a 'loading' animation
-def createTreeWhileShowingLoadingWindow(data, split):
+def createTreeWhileShowingLoadingWindow(data, split, testdata):
     
     # Create an 'Event' to indicate when the tree is built
     quit = mp.Event()
@@ -74,7 +88,7 @@ def createTreeWhileShowingLoadingWindow(data, split):
     Q = Queue()
     
     # Define both processes in the multiprocessing - the tree creation and the loading animation
-    p1 = Process(target = createTree, args=(data, split, quit, Q,))
+    p1 = Process(target = createTree, args=(data, split, testdata, quit, Q,))
     p2 = Process(target = renderLoadingWindow, args=(quit, ))
     
     # Store the time before starting to build the tree
@@ -98,11 +112,15 @@ def createTreeWhileShowingLoadingWindow(data, split):
 
 
 # louise Kilheeney -16100463
-def createTree(data, data_split, quit, queue):
+def createTree(data, data_split, testdata, quit, queue):
 
-    #call function to split the data into training and test data. 
-    train_data, test_data = split_data_training_testing(data, (data_split))
-    
+    if data_split != 0:
+        #call function to split the data into training and test data. 
+        train_data, test_data = split_data_training_testing(data, (data_split))
+    else:
+        train_data = data.drop(columns=['beer_id'])
+        test_data = testdata.drop(columns=['beer_id'])
+        
     #list of attributes in the data
     attributes = ['calorific_value','nitrogen','turbidity','style','alcohol','sugars','bitterness','colour','degree_of_fermentation']
 
@@ -140,15 +158,27 @@ def renderLoadingWindow(quit):
 # Aideen McLoughlin - 17346123
 def getInputData():
     # Declare the PySimpleGUI layout for the popup window
-    layout = [
+    one_file = [
         [sg.Text('Data file: '), sg.InputText("beer.csv", key="file")], 
         [sg.Text("Select Train/Test Data Split")],
         [sg.Radio('1/3',"1", key="1/3"), 
            sg.Radio('1/2',"1", key="1/2"), 
            sg.Radio('2/3',"1", key="2/3", default=True)],
-         [sg.Button('Ok'), sg.Button('Quit')]]
-        
+         [sg.Button('Ok', key='Ok1')]]
     
+    two_files = [
+        [sg.Text('Training File: '), sg.InputText("beer_training.csv", key="trainfile")], 
+        [sg.Text('Testing File: '), sg.InputText("beer.csv", key="testfile")],
+         [sg.Button('Ok', key='Ok2')]]
+    
+    # Declare the PySimpleGUI layout for the popup window with the two columns, and a QUIT button
+    layout = [
+        [
+            sg.Column(one_file),
+            sg.Column(two_files)
+        ],
+        [sg.Button('Quit')],
+    ]
     # Create the popup window
     window = sg.Window("Select Train/Test Split", layout)
     
@@ -159,19 +189,27 @@ def getInputData():
         event, values = window.read()
         if event == sg.WIN_CLOSED or event == 'Quit':
             break
-        if event == 'Ok':
+        if event == 'Ok1':
             if values["1/3"] == True:
                 split = (1/3)
             elif values["1/2"] == True:
                 split = (1/2)
             elif values["2/3"] == True:
                 split = (2/3)
+            filepath = values["file"]
+            filepathtrain = None
+            filepathtest = None
             break
-    filepath = values["file"]
+        if event == 'Ok2':
+            filepathtrain = values["trainfile"]
+            filepathtest = values["testfile"]
+            split = 0
+            filepath = None
+            break
     
     # Close the popup window
     window.close()
-    return split, filepath
+    return split, filepath, filepathtrain, filepathtest
 
 
 # Aideen McLoughlin - 17346123
@@ -431,26 +469,46 @@ def split_data_training_testing(data, ratio):
 def gather_data():
     
     # Get the train/test split and the filepath of the data file
-    split, filepath = getInputData()
+    split, filepath, filetrain, filetest = getInputData()
     
     # Create an empty pandas dataframe element
     data = pd.DataFrame()
+    test_data = pd.DataFrame()
     
-    # While the dataframe element remains empty
-    while data.empty:
-        
-        # Check If the filepath is valid
-        if path.isfile(filepath):
-            # If it is, set the data to be the csv data at that filepath
-            data = pd.read_csv(filepath)
-        else:
-            # If it is not valid, Display an error pop-up and prompt the user to imput the split and filepath again
-            errorWindow("File not found, please try again")
-            split, filepath = getInputData()
+    if filepath != None:
+        # While the dataframe element remains empty
+        while data.empty:
+            
+            # Check If the filepath is valid
+            if path.isfile(filepath):
+                # If it is, set the data to be the csv data at that filepath
+                data = pd.read_csv(filepath)
+            else:
+                # If it is not valid, Display an error pop-up and prompt the user to imput the split and filepath again
+                errorWindow("File not found, please try again")
+                split, filepath, filetrain, filetest = getInputData()
+    else:
+        while not ( not data.empty and not test_data.empty): # Check If the filepath is valid
+            if path.isfile(filetrain) and path.isfile(filetest):
+                # If it is, set the data to be the csv data at that filepath
+                data = pd.read_csv(filetrain)
+                test_data = pd.read_csv(filetest)
+            else:
+                # If it is not valid, Display an error pop-up and prompt the user to imput the split and filepath again
+                errorWindow("File not found, please try again")
+                split, filepath, filetrain, filetest = getInputData()
+            
     
     # Once the dataframe element is filled, return the data, the train/test split percentage and the filepath (For use in the weka implementation)
-    return data, split, filepath
+    return data, split, filepath, test_data, filetrain, filetest
 
+def checkFile(filepath):
+    if path.isfile(filepath):
+        return True
+    else:
+        # If it is not valid, Display an error pop-up and prompt the user to imput the split and filepath again
+        errorWindow("File not found, please try again")
+        return False
 
 # Louise Kilheeney - 16100463
 def data_class_check(data):

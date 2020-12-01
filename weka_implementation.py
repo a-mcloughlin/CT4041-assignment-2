@@ -12,7 +12,63 @@ import time
 # Aideen McLoughlin - 17346123
 # Taking in the data file location, and the train/test split proportion
 # Build a weka C4.5 implementation using the Python Weka Wrapper API
-def build_weka_tree(data_file, data_split):
+def build_weka_tree_seperate(filetrain, filetest):
+    jvm.start()
+    
+    # Load the data file
+    loader = Loader(classname="weka.core.converters.CSVLoader")
+    train = loader.load_file(filetrain)
+    test = loader.load_file(filetest)
+    
+    # Set the class to be column 3 - the style column
+    train.class_index = 3
+    
+    # Remove the beer_id column from the data as it is not relevant
+    remove = Filter(classname="weka.filters.unsupervised.attribute.Remove", options=["-R", "8"])
+    remove.inputformat(train)
+    train = remove.filter(train)
+    
+        # Set the class to be column 3 - the style column
+    test.class_index = 3
+    
+    # Remove the beer_id column from the data as it is not relevant
+    remove = Filter(classname="weka.filters.unsupervised.attribute.Remove", options=["-R", "8"])
+    remove.inputformat(test)
+    test = remove.filter(test)
+    
+    # Split the data into training data and testing data
+    #train, test = data.train_test_split(100*data_split, Random(1))
+    
+    # Store the time before starting to build the tree
+    starttime = time.time()
+    
+    # Build and Train the weka tree
+    cls = Classifier(classname="weka.classifiers.trees.J48")    
+    cls.build_classifier(train)
+    
+    # Store the time once the tree has been built
+    endtime = time.time()
+    
+    # Render a png image of the weka tree to display in the PySimpleGUI popup
+    g = graphviz.Source(cls.graph)
+    g.format = "png"
+    g.render('weka-test.gv', view=False)
+    
+    # Predict the output for the test data 
+    output = PredictionOutput(classname="weka.classifiers.evaluation.output.prediction.CSV", options=["-distribution"])
+    evl = Evaluation(train)
+    
+    # Get the accuracy of the predicted data
+    evl.test_model(cls, test, output=output)
+    correct = evl.percent_correct
+    jvm.stop()
+    return round(correct, 2), endtime-starttime
+
+
+# Aideen McLoughlin - 17346123
+# Taking in the data file location, and the train/test split proportion
+# Build a weka C4.5 implementation using the Python Weka Wrapper API
+def build_weka_tree_split(data_file, data_split):
     jvm.start()
     
     # Load the data file
