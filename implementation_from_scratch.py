@@ -19,7 +19,7 @@ import base64
 import math
 
 
-# Louise Kilheeney - 16100463
+# Louise and Aideen
 def main():
     
     # Get the data, the train/test split percentage and the filepath of the data location
