@@ -425,6 +425,11 @@ def split_data_training_testing(data, ratio):
     train.to_csv('train_data_generated.csv',index=False,header=True) 
     test.to_csv('test_data_generated.csv',index=False,header=True) 
     
+    # Create a folder to store the reults in if it does not already exist
+    if not path.exists('results'):
+        print("Create results folder")
+        os.mkdir('results')
+    
     # Return the training and testing data
     return train, test
 

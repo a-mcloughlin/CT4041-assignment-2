@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
 from implementation_from_scratch import *
+from weka_implementation import *
 import weka.core.jvm as jvm
-
 # Define a range of train/test split proportions
 proportions = [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95]
 
@@ -27,6 +27,6 @@ for split in proportions:
     python_accuracy = test_tree(root_node, test_data, split)
     
     # Build and test the weka tree
-    weka_accuracy, weka_time_to_build = build_weka_tree(split)
+    weka_accuracy, weka_time_to_build = build_weka(split)
     
 jvm.stop()

@@ -18,6 +18,12 @@ from graphviz import Digraph
 def build_weka_tree(split):
     jvm.start()
     
+    accuracy, time_to_build = build_weka(split)
+    
+    jvm.stop()
+    return accuracy, time_to_build
+
+def build_weka(split):
     # Load the data file
     loader = Loader(classname="weka.core.converters.CSVLoader")
     train = loader.load_file('train_data_generated.csv')
@@ -100,6 +106,4 @@ def build_weka_tree(split):
     g = graphviz.Source(graph)
     g.format = "png"
     g.render('weka-test.gv', view=False)
-    
-    jvm.stop()
     return round(accuracy*100, 2), time_to_run
