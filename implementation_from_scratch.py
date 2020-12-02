@@ -23,7 +23,7 @@ import math
 def main():
     
     # Get the data, the train/test split percentage and the filepath of the data location
-    data, split, file = gather_data()
+    data, split = gather_data()
     
     # While animate a 'loading' gif to show that the process is running,
     # Build a C4.5 tree from the data. 
@@ -34,13 +34,14 @@ def main():
     print_tree(root_node)
     
     # Calculate the accuracy of the built tree using the testing data
-    python_accuracy = test_tree(root_node, testing_data)
+    python_accuracy = test_tree(root_node, testing_data, split)
     
     # Build a tree using the same data in weka. 
     # Draw the weka tree and store it in png format
     # Get the accuracy of the weka tree, and the time it took to construct
-    weka_accuracy, weka_time_to_build = build_weka_tree(file, split)
+    weka_accuracy, weka_time_to_build = build_weka_tree(split)
     
+    # Scale and format the times it took to run each implementation 
     python_time = processTimes(python_time_to_build)
     weka_time = processTimes(weka_time_to_build)
     
@@ -247,20 +248,19 @@ def DisplayTreesPopup(python_accuracy, weka_accuracy, p_time, w_time):
      
 # louise Kilheeney - 16100463
 def build_tree(data, attributes):
-    #1. check above base cases
+    #1. check the base cases
         #•  All the examples from the training set belong to the same class ( a tree leaf labeled with that class is returned ).
-    # data_class_checked = data_class_check(data)
+    if data['style'].nunique() == 1:
+         return Node(True, data['style'][0], None)
     #•  The training set is empty ( returns a tree leaf called failure ).
     if len(data) == 0:
 	    return Node(True, "Fail", None)
-    # elif data_class_checked is not False:		
-	#     return Node(True, data_class_checked, None)
 
     #2. find attribute with highest info gain, retrun best_attribute
         # calling function find-best-attribute which retruns the best attribute, the attribute subsets and the threshold divisor 
     best_attribute, attribute_subsets, threshold_divisor  = find_best_attribute(data, attributes)
     
-    #if best attribute is empthy 
+    #if best attribute is empty 
     if best_attribute == "":
         #calling function get majorityclass to return the majority class
         majClass = getMajorityClass(data)
@@ -420,10 +420,15 @@ def split_data_training_testing(data, ratio):
     test = data.merge(train, how='left', indicator=True)
     test = test[(test['_merge']=='left_only')].copy()
     test = test.drop(columns='_merge').copy()
+    
+    # Save the divided dataset so that it can be used in the weka implementation
+    train.to_csv('train_data_generated.csv',index=False,header=True) 
+    test.to_csv('test_data_generated.csv',index=False,header=True) 
+    
     # Return the training and testing data
     return train, test
 
-
+from pandas.errors import EmptyDataError
 # Louise Kilheeney - 16100463
 # Get the filepath of the data file, and the train/test data split fro user imput in a PySimpleGUI popup
 # If a filepath provided is not valid, prompt the user to input a new filepath. 
@@ -449,15 +454,7 @@ def gather_data():
             split, filepath = getInputData()
     
     # Once the dataframe element is filled, return the data, the train/test split percentage and the filepath (For use in the weka implementation)
-    return data, split, filepath
-
-
-# Louise Kilheeney - 16100463
-def data_class_check(data):
-    for index, row in data.iterrows():
-        if row.iloc[-1] != data.iloc[0].iloc[-1]:
-            return False
-    return data.iloc[0].iloc[-1]
+    return data, split
 
 
 # Aideen McLoughlin - 17346123
@@ -508,7 +505,7 @@ def information_gain(train_target, subsets):
 
 # Aideen McLoughlin - 17346123
 # Test the built tree using the testing data
-def test_tree(root_node, testing_data):
+def test_tree(root_node, testing_data, split):
     
     # Get the style as the target values, and then drop them from the testing dataset
     test_target = testing_data['style'].values
@@ -517,26 +514,31 @@ def test_tree(root_node, testing_data):
     # get the results of the tree predictions for all the testing data values
     test_results = test_data(testing_data, root_node, [])
     
-    df = pd.DataFrame()
-    df['Actual'] += test_target
-    df['Predicted'] += test_results
-    
-    df.to_csv('python-results.csv',index=False,header=True)
-    
     # Initialise the number of correct entries to 0
     correct = 0
     
+    accurate = []
     # For each test result, check if it is accurate using the style values we removed from the Dataframe earlier
     # Keep a count of the number of correct predictions
     # If the prediction is wrong, print the incorrect predicton
     for index in range(0, len(test_results)):
         if test_results[index] == test_target[index]:
             correct = correct +1
+            accurate.append(1)
         else:
-            print(str(test_target[index]) +" incorrectly categorised as "+str(test_results[index]))
+            accurate.append(0)
             
     # Calculate the accuracy to 2 decimal places, and return it
     accuracy = round(correct/len(test_results),2)
+    
+    df = pd.DataFrame()
+    df['Actual'] = test_target
+    df['Predicted'] = test_results
+    df['Accuracy'] = accurate
+    
+    filename = "results/python-results-"+str(round(split,2))+"-"+str(round(accuracy,2))+".csv"
+    df.to_csv(filename,index=False,header=True)
+    
     return accuracy
 
 

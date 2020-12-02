@@ -9,60 +9,97 @@ import weka.plot.graph as graph
 import graphviz
 import time
 import pandas as pd
+import numpy as np
+from graphviz import Digraph
 
 # Aideen McLoughlin - 17346123
 # Taking in the data file location, and the train/test split proportion
 # Build a weka C4.5 implementation using the Python Weka Wrapper API
-def build_weka_tree(data_file, data_split):
+def build_weka_tree(split):
     jvm.start()
     
     # Load the data file
     loader = Loader(classname="weka.core.converters.CSVLoader")
-    data = loader.load_file(data_file)
+    train = loader.load_file('train_data_generated.csv')
+    test = loader.load_file('test_data_generated.csv')
+    
+    # Store the target values for the test data 
+    # so that the accuracy of the formula can be checked
+    test_target = pd.read_csv('test_data_generated.csv')['style'].values
+    # Get the dataset used to train the model, 
+    # so that we can identify what the key values for the class are.
+    # As data is split randomly, we cannot assume it is in [ale, lager,stout] order
+    train_classes = pd.read_csv('train_data_generated.csv')['style'].values
     
     # Set the class to be column 3 - the style column
-    data.class_index = 3
+    train.class_index = 3
     
-    # Remove the beer_id column from the data as it is not relevant
-    remove = Filter(classname="weka.filters.unsupervised.attribute.Remove", options=["-R", "8"])
-    remove.inputformat(data)
-    data = remove.filter(data)
-    
-    # Split the data into training data and testing data
-    train, test = data.train_test_split(100*data_split, Random(1))
+    # Set the class to be column 3 - the style column
+    test.class_index = 3
     
     # Store the time before starting to build the tree
     starttime = time.time()
     
+    # initialise the time_to_run and accuracy to 0
+    time_to_run = 0
+    accuracy = 0
+        
     # Build and Train the weka tree
-    cls = Classifier(classname="weka.classifiers.trees.J48")    
-    cls.build_classifier(train)
+    cls = Classifier(classname="weka.classifiers.trees.J48")  
     
-    # Store the time once the tree has been built
-    endtime = time.time()
+    # Check that the data is valid  
+    # If so, Build and Train the weka tree
+    if len(list(np.unique(train_classes))) != 1:
+        cls.build_classifier(train)
+        graph = cls.graph
+        # Store the time once the tree has been built
+        endtime = time.time()
+        
+        # Create a list to store the predicted values in
+        pred = []
+        accurate = []
+        # Get the class labels in the order that they were allocated when training the model
+        classes = pd.Series(train_classes).drop_duplicates().tolist()
+        
+        correct = 0
+        total = 0
+        # loop through test dataset, incrementing total every time
+        # and incrementing count if the predicted value was correct
+        for index, inst in enumerate(test):
+            total = total +1
+            predicted = classes[int(cls.classify_instance(inst))]
+            pred.append(predicted)
+            act = test_target[index]
+            if predicted == test_target[index]:
+                correct = correct+1
+                accurate.append(1)
+            else:
+                accurate.append(0)
+        
+        # Get the accuracy of the weka implementation
+        accuracy = (correct/total)
+        
+        # store the results in a csv file - the predicted class and the actual class
+        df = pd.DataFrame()
+        df['Actual'] =  test_target
+        df['Predicted'] = pred
+        df['Accuracy'] = accurate
+        filename = "results/weka-results-"+str(round(split,2))+"-"+str(round(accuracy,2))+".csv"
+        df.to_csv(filename,index=False,header=True)
+        
+        time_to_run = endtime-starttime
+    # If the data is invalid, create a node to indicate failure
+    elif len(train) == 0:
+        graph = Digraph('python_tree_implementation')
+        graph.node(name='A', label="Fail", shape='box', style='filled')
+    else:
+        graph = Digraph('python_tree_implementation')
+        graph.node(name='A', label=train_classes[0], shape='box', style='filled')
     
     # Render a png image of the weka tree to display in the PySimpleGUI popup
-    g = graphviz.Source(cls.graph)
+    g = graphviz.Source(graph)
     g.format = "png"
     g.render('weka-test.gv', view=False)
     
-    # Predict the output for the test data 
-    output = PredictionOutput(classname="weka.classifiers.evaluation.output.prediction.CSV", options=["-distribution"])
-    evl = Evaluation(train)
-    
-    # Get the accuracy of the predicted data
-    evl.test_model(cls, test, output=output)
-    pred = []
-    classes = ['ale','lager','stout']
-    for index, inst in enumerate(test):
-        pred.append(classes[int(cls.classify_instance(inst))])
-        
-    df = pd.DataFrame()
-    df['Actual'] =  test.subset(col_names=['style'])
-    df['Predicted'] = pred
-    print(evl.predictions)
-    df.to_csv('weka-results.csv',index=False,header=True)
-    
-    correct = evl.percent_correct
     jvm.stop()
-    return round(correct, 2), endtime-starttime
+    return round(accuracy*100, 2), time_to_run
