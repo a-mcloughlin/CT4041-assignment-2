@@ -1,3 +1,4 @@
+# implementation_from_scratch.py
 # Main file for the implementation of the C4.5 algorithm
 import pandas as pd
 import numpy as np
@@ -19,7 +20,7 @@ import base64
 import math
 
 
-# Louise and Aideen
+# louise Kilheeney -16100463
 def main():
     
     # Get the data, the train/test split percentage and the filepath of the data location
@@ -279,7 +280,6 @@ def build_tree(data, attributes):
         return node
 
 
-
 # Louise Kilheeney - 16100463
 # Generate a png of the tree from the root node
 def print_tree(root_node):
@@ -293,7 +293,8 @@ def print_tree(root_node):
     # Format the graph as a png, and save it
     g.format = "png"
     g.render('test.gv', view=False)
-    
+
+
 # Louise Kilheeney - 16100463
 # Add a node to the tree
 def addEl(node, g, rootname):
@@ -317,6 +318,7 @@ def addEl(node, g, rootname):
     else:
         # If the node is a leaf, add it while styling it as a leaf
         g.node(name=rootname, label=node.label, shape='box', style='filled')
+
 
 # Louise Kilheeney - 16100463
 def find_best_attribute(train_data, attributes):
@@ -405,7 +407,7 @@ def split_data_styles(data):
     return subsets
 
 
-# Louise Kilheeney - 16100463
+# Aideen McLoughlin - 17346123
 # Split the data into training and testing datasets
 def split_data_training_testing(data, ratio):
 
@@ -433,7 +435,6 @@ def split_data_training_testing(data, ratio):
     # Return the training and testing data
     return train, test
 
-from pandas.errors import EmptyDataError
 # Louise Kilheeney - 16100463
 # Get the filepath of the data file, and the train/test data split fro user imput in a PySimpleGUI popup
 # If a filepath provided is not valid, prompt the user to input a new filepath. 
@@ -559,7 +560,7 @@ def test_data(data, node, test_results):
     return test_results
 
 
-# Aideen McLoughlin - 17346123
+# Louise Kilheeney - 16100463
 # Get the final leaf node destination for a data row
 def test_lr(node, row):
     

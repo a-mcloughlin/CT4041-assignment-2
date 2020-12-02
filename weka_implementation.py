@@ -1,3 +1,4 @@
+# weka_implementation.py
 from weka.classifiers import Classifier
 from weka.core.converters import Loader
 import weka.core.jvm as jvm
@@ -12,7 +13,7 @@ import pandas as pd
 import numpy as np
 from graphviz import Digraph
 
-# Aideen McLoughlin - 17346123
+# Louise Kilheeney - 16100463
 # Taking in the data file location, and the train/test split proportion
 # Build a weka C4.5 implementation using the Python Weka Wrapper API
 def build_weka_tree(split):
@@ -23,6 +24,7 @@ def build_weka_tree(split):
     jvm.stop()
     return accuracy, time_to_build
 
+# Louise Kilheeney - 16100463
 def build_weka(split):
     # Load the data file
     loader = Loader(classname="weka.core.converters.CSVLoader")
